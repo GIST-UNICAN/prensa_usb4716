@@ -1,0 +1,27 @@
+{
+  "device_description": "USB-4716,BID#0",
+  "force_channel": 0,
+  "deformation_channel": 2,
+  "force_factor_kp_per_v": -1970.57,
+  "force_offset_kp": 0.0,
+  "deformation_factor_mm_per_v": 2.643095,
+  "deformation_offset_mm": 0.0,
+  "sample_hz": 100,
+  "display_average_samples": 10,
+  "tare_samples": 100,
+  "saturation_voltage": 4.95,
+  "output_directory": "ensayos",
+  "pinout": {
+    "legacy_force_high": 1,
+    "legacy_force_low": 20,
+    "legacy_deformation_high": 2,
+    "legacy_deformation_low": 21,
+    "usb_force_plus": 0,
+    "usb_force_minus": 1,
+    "usb_deformation_plus": 2,
+    "usb_deformation_minus": 3
+  },
+  "logo_path": "assets/uca_logo.png",
+  "input_mode": "Differential",
+  "input_range": "V_Neg5To5"
+}
