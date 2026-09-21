@@ -21,7 +21,7 @@
     "usb_deformation_plus": 2,
     "usb_deformation_minus": 3
   },
-  "logo_path": "assets/uca_logo.png",
+  "logo_path": "assets/uc_logo_2024.png",
   "input_mode": "Differential",
   "input_range": "V_Neg5To5"
 }

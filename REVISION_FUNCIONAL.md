@@ -17,13 +17,13 @@ Se han comparado `AD_SOFT/FRMSTART.FRM`, `FRMRUN.FRM`, `Form2.frm` y `FILTRAR/FI
 | Selección de dispositivos Advantech antiguos | Adaptada a nombre DAQNavi y canales; sin enumeración automática de tarjetas antiguas |
 | Campo velocidad en FILTRAR | Añadida velocidad media medida en mm/min; no impone velocidad a la prensa |
 
-El código FILTRAR calcula umbrales del 5 % y 95 %, pero la rutina inspeccionada no los aplica al exportar. No se presenta ese comportamiento incompleto como un filtro validado. Tampoco se replica su `100 * Int(deformacion)` porque pierde precisión y contradice las unidades almacenadas por adquisición.
+El código FILTRAR calcula umbrales del 5 % y 95 %, pero la rutina inspeccionada no los aplica al exportar. La nueva aplicación presenta ese tramo como filtro explícito **Ascenso 5–95 %**, limitado al ascenso hasta el primer pico, y permite exportarlo como CSV de análisis. También incluye media móvil y mediana. Ninguno modifica las muestras originales ni replica `100 * Int(deformacion)`, que pierde precisión y contradice las unidades almacenadas por adquisición.
 
 ## Funciones añadidas
 
 - Laboratorio de calibración multipunto: patrones manuales o captura del último segundo, recta, residuos, R², error máximo e historial en `config.json`.
 - Captura de calibración independiente de la tara; al aplicar se reinicia la tara del sensor. Dos puntos no permiten evaluar la linealidad: su ajuste es exacto por definición.
-- Resumen: número de puntos, duración, carga máxima en kp/kN, deformación al pico y velocidad media entre extremos.
+- Resumen: número de puntos, duración, carga máxima en kp/kgf/N/kN, deformación al pico y velocidad media entre extremos; la presión se habilita con el área de probeta.
 - Marcador del pico en la curva.
 - CSV más archivo `.metadata.json` con configuración y tara del ensayo. Mantenga ambos juntos para volver a generar informes con su calibración original.
 - Validación y escritura atómica de configuración. Los datos de un ensayo conservan su calibración aunque posteriormente cambie la activa.
@@ -35,7 +35,7 @@ Las pruebas automáticas cubren calibración, formato antiguo real, unidades, me
 
 ## Ampliación: biblioteca y análisis
 
-Se incorpora un historial SQLite transaccional con guardado al detener, búsqueda, recuperación y comparación de 2–6 ensayos. El formato JSON versionado permite transportar datos y metadatos sin depender de la base de datos. Se añaden Excel con gráficas editables, HTML autónomo, ZIP individual y ZIP de selección. Las vistas de análisis incorporan deformación, voltajes y velocidad frente al tiempo, unidades de fuerza seleccionables y suavizado visual.
+Se incorpora un historial SQLite transaccional con guardado al detener, búsqueda, recuperación y comparación de 2–6 ensayos. El formato JSON versionado permite transportar datos y metadatos sin depender de la base de datos. Se añaden Excel con gráficas editables, HTML autónomo, ZIP individual y ZIP de selección. Las vistas de análisis incorporan deformación, voltajes y velocidad frente al tiempo, unidades de fuerza o presión, filtros y exportación del análisis.
 
 Las pruebas adicionales verifican persistencia tras reabrir, actualización sin duplicados, errores de guardado sin pérdida del estado pendiente, restauración de metadatos, selección comparativa, exportación por lotes, archivos Excel con gráficas, integridad del ZIP, voltajes ausentes y rechazo de datos inválidos. El guardado al detener no equivale a recuperación de un ensayo interrumpido por un cierre inesperado.
 

@@ -43,7 +43,7 @@ Localización USB: use el bloque serigrafiado de **entradas AI**. La figura 3.1 
 | Ganancia | La ganancia depende de la tarjeta y de su tabla de driver | Se selecciona el mismo rango en voltios, **no se copia el código numérico de ganancia** |
 | Método de lectura | `DRV_AIVoltageIn`, `TrigMode=0`, dos llamadas secuenciales | Dos lecturas `InstantAiCtrl::Read`, sin trigger externo |
 | Temporización | `Timer1.Interval=1` ms solicitado por VB6 | 100 Hz solicitados por defecto, configurable; no equivale a 1 kHz garantizado del programa antiguo |
-| Suavizado | Media de bloques de 10 lecturas; el registro vuelve a acumular valores mantenidos y trunca a enteros | Media móvil de 10 en indicadores; se conserva cada muestra sin truncar en el archivo. No es idéntico bit a bit al filtro antiguo |
+| Suavizado | Media de bloques de 10 lecturas; el registro vuelve a acumular valores mantenidos y trunca a enteros | Media móvil de 10 en indicadores; se conserva cada muestra sin truncar. El análisis añade media móvil y mediana sin modificar el registro |
 | Tara | Pasa a 100 lecturas y toma los ceros de ambos canales | Promedia 100 muestras; compensa también offsets de calibración |
 | Conversión fuerza | `(V - cero) × -1970,57` kp | Factor inicial **-1970,57 kp/V**, offset 0 |
 | Conversión deformación | `(V - cero) × 2,643095` mm | Factor inicial **2,643095 mm/V**, offset 0 |
@@ -94,6 +94,6 @@ Los cinco contactos restantes son AGND: 9, 10, 19, 28 y 29. Esta tabla correspon
 - [Manual USB-4716, edición 3, figuras 3.1 y 3.3 y apéndice A](https://advdownload.advantech.com/productfile/Downloadfile3/1-26D8IVA/USB-4716_User_Manual_Ed.3-FINAL.pdf). Copia local: `docs/hardware/USB-4716_manual.pdf`.
 - [Ficha PCL-816 del fabricante](https://advdownload.advantech.com/productfile/PIS/PCL-816/Product%20-%20Datasheet/PCL-816_816-DA_DS20101026174709.pdf).
 
-## Identidad UCA
+## Identidad UC
 
-La aplicación incluye el logosímbolo oficial UCA, versión horizontal en color, descargado de [Logosímbolos del Gabinete de Comunicación](https://gabcomunicacion.uca.es/identidad-visual/logosimbolos/). Puede cambiarlo desde **Configuración > Identidad / PDF**. Aparece en la cabecera de la aplicación y de **cada página del PDF**, conservando su proporción. La identidad se toma de la configuración actual de la aplicación; los datos de calibración del informe siguen siendo los originales del ensayo.
+La aplicación incluye el logotipo UC (2024), versión horizontal en color, publicado por la [Universidad de Cantabria](https://ifca.unican.es/es-es/acerca-del-ifca/imagen-corporativa). Puede cambiarlo desde **Configuración > Identidad / PDF**. Aparece en la cabecera de la aplicación y de **cada página del PDF**, conservando su proporción. La identidad se toma de la configuración actual de la aplicación; los datos de calibración del informe siguen siendo los originales del ensayo.

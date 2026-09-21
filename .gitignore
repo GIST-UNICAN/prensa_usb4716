@@ -4,3 +4,4 @@ __pycache__/
 .DS_Store
 ensayos/
 tmp/
+output/pdf/historial.sqlite3

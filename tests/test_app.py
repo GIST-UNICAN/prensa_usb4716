@@ -98,7 +98,7 @@ class AppTests(unittest.TestCase):
         self.assertTrue(a.dirty); self.assertEqual(len(a.samples),1)
         error.assert_called_once()
 
-    def test_pdf_has_uca_logo_on_every_page(self):
+    def test_pdf_has_uc_logo_on_every_page(self):
         try:
             from pypdf import PdfReader
         except ImportError:
@@ -112,7 +112,7 @@ class AppTests(unittest.TestCase):
         report=PdfReader(root/'report.pdf')
         self.assertGreaterEqual(len(report.pages),3)
         for page in report.pages:
-            self.assertIn('Universidad de Cádiz',page.extract_text())
+            self.assertIn('Universidad de Cantabria',page.extract_text())
             self.assertIn('Página',page.extract_text())
             self.assertGreaterEqual(len(page.images),1)
         self.assertIn('SIMULACIÓN',report.pages[0].extract_text())

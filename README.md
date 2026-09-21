@@ -71,7 +71,7 @@ El software realiza adquisicion y registro. No controla el movimiento ni la segu
 
 La pestaña **Calibración · laboratorio** permite elegir fuerza (kp) o deformación (mm), introducir patrones y ajustar una recta con dos o más puntos. Con la DAQ conectada y el ensayo detenido, **Capturar 1 s** toma la media de los voltajes brutos recientes y muestra su variación. Espere a que el patrón se estabilice antes de capturar. Revise la gráfica y los residuos y pulse **Aplicar y guardar calibración**. Los patrones, fecha, errores y condición de simulación quedan en `config.json`. La tara del sensor se reinicia al aplicar; realice una nueva tara sin carga antes del ensayo.
 
-**Datos / Exportación** abre CSV nuevos y TXT antiguos, exporta TXT y muestra pico de carga, deformación al pico, duración y velocidad media. CSV guarda cada lectura sin suavizado junto con un archivo `.metadata.json`; conserve ambos juntos. El promedio configurable solo afecta a los indicadores. Los TXT antiguos expresan deformación en centésimas de mm, que se convierten automáticamente a mm, y no incluyen voltajes. Los informes PDF requieren la configuración original del ensayo; archivos antiguos sin ella pueden exportarse a CSV y PNG.
+**Datos / Exportación** abre CSV nuevos y TXT antiguos, exporta TXT y muestra pico de carga, deformación al pico, duración y velocidad media. El CSV guarda cada lectura sin suavizado, voltajes y fuerza en kp, kgf, N y kN; cuando se indica el área, añade Pa, kPa, MPa y kgf/cm². Conserva el archivo `.metadata.json` junto al CSV. Los TXT antiguos expresan deformación en centésimas de mm, que se convierten automáticamente a mm, y no incluyen voltajes.
 
 La comparación detallada con el código antiguo y los límites de verificación están en [REVISION_FUNCIONAL.md](REVISION_FUNCIONAL.md).
 
@@ -95,7 +95,7 @@ El guardado automático se realiza al detener el ensayo, no durante cada lectura
 
 ## Análisis y gráficas
 
-**Análisis / gráficas** incorpora cinco vistas: fuerza–deformación, fuerza–tiempo, deformación–tiempo, voltajes–tiempo y velocidad–tiempo. Permite seleccionar kp/kN, media móvil de 1–50 muestras, zoom y exportación de la vista a PNG o SVG. El suavizado es únicamente visual: no modifica los archivos ni las estadísticas. La comparación alinea el tiempo al comienzo de cada ensayo, sin desplazar las deformaciones ni normalizar fuerzas.
+**Análisis / gráficas** incorpora cinco vistas: fuerza–deformación, fuerza–tiempo, deformación–tiempo, voltajes–tiempo y velocidad–tiempo. Permite trabajar en kp, kgf, N y kN; al indicar el área de probeta en Configuración, habilita Pa, kPa, MPa y kgf/cm². Incluye señal sin filtrar, media móvil, mediana y los tramos “Desde 5 %” y “Ascenso 5–95 %”. El último reproduce de forma explícita los umbrales que el formulario `FILTRAR` antiguo calculaba sin llegar a aplicar. Los filtros sólo afectan a la vista o al CSV de análisis; el archivo bruto, las estadísticas y la calibración no se alteran.
 
 La velocidad se estima con diferencias de deformación sobre ventanas de al menos 0,5 segundos. En registros más cortos no se muestra una velocidad. Los archivos antiguos sin voltajes indican que no hay datos para esa vista. Para mantener la fluidez, las gráficas grandes reducen los puntos dibujados; los datos exportados se conservan completos. Durante la adquisición, las gráficas de **Ensayo** son las vistas en directo; pulse **Ver ensayo actual** para actualizar el análisis ampliado.
 
@@ -109,12 +109,13 @@ Desde **Datos / Exportación**, con el ensayo detenido:
 | JSON (`.json`) | Ensayo completo versionado, recuperable en la aplicación |
 | HTML (`.html`) | Informe autónomo con resumen y cinco gráficas SVG; funciona sin Internet y se puede imprimir |
 | ZIP (`.zip`) | JSON, CSV completo, informe HTML y cinco imágenes PNG |
-| PNG / SVG | Vista de análisis actual, incluidas comparaciones y suavizado seleccionado |
+| PNG / SVG | Vista de análisis actual, incluidas comparaciones, unidad, filtro y tramo seleccionados |
+| CSV de vista filtrada | Puntos y valores exactamente visibles en el análisis, con el filtro seleccionado |
 
 Se mantienen las exportaciones CSV, TXT antiguo y PDF existentes. Excel requiere `openpyxl`, ya incluido en `requirements.txt`. Los informes HTML y el paquete ZIP usan datos sin suavizar; para exportar exactamente la vista suavizada o comparativa use el botón PNG/SVG de **Análisis / gráficas**. Los voltajes inexistentes se guardan como `null` en JSON y celdas vacías en Excel/CSV ampliado.
 
-## Logotipo UCA en aplicación e informes
+## Logotipo UC en aplicación e informes
 
-Se incluye el logosímbolo oficial horizontal en color. **Configuración > Identidad / PDF** permite elegir otro PNG/JPG institucional o restaurar el original. El PDF muestra el logotipo en todas sus páginas, con numeración y espacio reservado en cabecera. Si el archivo del logotipo no está disponible, se solicita corregir la configuración antes de exportar.
+Se incluye el logotipo oficial UC (2024), horizontal en color, de la Universidad de Cantabria. **Configuración > Identidad / PDF** permite elegir otro PNG/JPG institucional o restaurar el original. El PDF muestra el logotipo en todas sus páginas, con numeración y espacio reservado en cabecera. La página institucional que publica los formatos oficiales es [Imagen Corporativa IFCA](https://ifca.unican.es/es-es/acerca-del-ifca/imagen-corporativa).
 
 **Configuración > Migración PCL-816** resume el cableado. El puente verifica el modo diferencial y ±5 V después de configurarlos. Debe recompilarse `bridge/build_bridge.bat` en Windows con el SDK DAQNavi; la comprobación física de señales y la calibración con patrones siguen pendientes en el equipo real.

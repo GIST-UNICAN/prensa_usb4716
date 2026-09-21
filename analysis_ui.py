@@ -6,7 +6,8 @@ import sqlite3
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from sessions import SessionStore, make_session, timestamp, load_session, session_summary, validate_session
-from exports import CHARTS, draw_chart, export_session
+from exports import CHARTS, draw_chart, export_session, filtered_csv_text
+from units import available_units
 
 
 class AnalysisUI:
@@ -22,6 +23,8 @@ class AnalysisUI:
         self.chart_kind=tk.StringVar(value=CHARTS['fd'])
         self.chart_unit=tk.StringVar(value='kp')
         self.chart_average=tk.StringVar(value='1')
+        self.chart_filter=tk.StringVar(value='Sin filtro')
+        self.chart_range=tk.StringVar(value='Todo')
         self.chart_info=tk.StringVar(value='Seleccione un ensayo o compare varios desde el historial.')
         self.tab_history=ttk.Frame(self.nb,padding=12)
         self.tab_analysis=ttk.Frame(self.nb,padding=12)
@@ -167,9 +170,9 @@ class AnalysisUI:
     def _build_analysis_charts(self):
         tab=self.tab_analysis
         ttk.Label(tab,text='Explorar resultados',font=('Segoe UI',20,'bold')).pack(anchor='w')
-        ttk.Label(tab,text='Cinco vistas, unidades seleccionables y comparación de curvas. El suavizado solo afecta a esta vista.').pack(anchor='w',pady=(3,10))
+        ttk.Label(tab,text='Cinco vistas, unidades seleccionables, filtros y comparación. La señal bruta nunca se modifica.').pack(anchor='w',pady=(3,10))
         bar=ttk.Frame(tab); bar.pack(fill='x')
-        for var,values,width in [(self.chart_kind,list(CHARTS.values()),25),(self.chart_unit,['kp','kN'],6)]:
+        for var,values,width in [(self.chart_kind,list(CHARTS.values()),25),(self.chart_unit,available_units(self.cfg.get('specimen_area_mm2')),10),(self.chart_filter,['Sin filtro','Media móvil','Mediana'],14),(self.chart_range,['Todo','Desde 5 %','Ascenso 5–95 %'],18)]:
             box=ttk.Combobox(bar,textvariable=var,values=values,state='readonly',width=width)
             box.pack(side='left',padx=(0,8)); box.bind('<<ComboboxSelected>>',lambda _:self.refresh_analysis())
         ttk.Label(bar,text='Media (muestras)').pack(side='left')
@@ -177,6 +180,7 @@ class AnalysisUI:
         smooth.pack(side='left',padx=8); smooth.bind('<<ComboboxSelected>>',lambda _:self.refresh_analysis())
         ttk.Button(bar,text='Ver ensayo actual',command=self.show_current_analysis).pack(side='left')
         ttk.Button(bar,text='Exportar vista PNG / SVG',command=self.export_analysis_chart).pack(side='left',padx=8)
+        ttk.Button(bar,text='CSV de vista filtrada',command=self.export_filtered_csv).pack(side='left')
         self.analysis_canvas=None
         try:
             from matplotlib.figure import Figure
@@ -203,12 +207,12 @@ class AnalysisUI:
         if self.analysis_canvas is None:return
         sessions=self.comparisons or ([self.current_session()] if self.samples else [])
         kind=next(k for k,v in CHARTS.items() if v==self.chart_kind.get())
-        draw_chart(self.analysis_ax,sessions,kind,self.chart_unit.get(),int(self.chart_average.get()))
+        draw_chart(self.analysis_ax,sessions,kind,self.chart_unit.get(),int(self.chart_average.get()),self.chart_filter.get(),self.chart_range.get())
         self.analysis_canvas.draw_idle()
         if self.comparisons:
             self.chart_info.set('Comparación · '+ ' | '.join(f"{s['metadata'].get('reference','Ensayo')}: {session_summary(s)['peak_kn']:.3f} kN" for s in sessions)+' · Tiempos relativos al inicio de cada ensayo.')
         else:
-            self.chart_info.set('Vista del ensayo actual. Pulse «Ver ensayo actual» para actualizar durante la adquisición. Velocidad estimada en ventanas ≥0,5 s; el suavizado no modifica el archivo.')
+            self.chart_info.set(f"Vista del ensayo actual · {self.chart_filter.get()} · tramo {self.chart_range.get()}. Pulse «Ver ensayo actual» para actualizar durante la adquisición. Los filtros no modifican el archivo bruto.")
 
     def compare_history(self):
         ids=self.history_tree.selection()
@@ -244,6 +248,18 @@ class AnalysisUI:
             self.status.set(f'{kind.upper()} exportado: {Path(path).name}')
         except Exception as exc: messagebox.showerror('Exportación',f'No se pudo exportar: {exc}')
         finally: self.configure(cursor='')
+
+    def export_filtered_csv(self):
+        if self.recording:
+            messagebox.showinfo('Exportación','Detenga el ensayo antes de exportar.'); return
+        if not self.samples:
+            messagebox.showinfo('Exportación','No hay muestras que exportar.'); return
+        path=filedialog.asksaveasfilename(initialdir=str(self._outdir()),initialfile='vista_filtrada.csv',defaultextension='.csv',filetypes=[('CSV','*.csv')])
+        if not path:return
+        try:
+            Path(path).write_text('\ufeff'+filtered_csv_text(self.current_session(),self.chart_filter.get(),int(self.chart_average.get()),self.chart_range.get()),encoding='utf-8')
+            self.status.set('CSV de análisis exportado: '+Path(path).name)
+        except (OSError,ValueError) as exc: messagebox.showerror('Exportación',str(exc))
 
     def export_history_batch(self):
         import zipfile

@@ -9,6 +9,7 @@ import tempfile
 import zipfile
 from pathlib import Path
 from sessions import dumps_session, session_summary
+from units import from_kp
 
 CHARTS = {
     'fd': 'Fuerza · deformación', 'ft': 'Fuerza · tiempo',
@@ -16,12 +17,18 @@ CHARTS = {
     'speed': 'Velocidad · tiempo',
 }
 COLORS = ['#2563eb', '#0891b2', '#e87924', '#7c3aed', '#be185d', '#15803d']
-HEADERS = ['tiempo_s','voltaje_fuerza_V','voltaje_deformacion_V','fuerza_kp','fuerza_kN','deformacion_mm']
+HEADERS = ['tiempo_s','voltaje_fuerza_V','voltaje_deformacion_V','fuerza_kp','fuerza_kN','deformacion_mm',
+           'fuerza_kgf','fuerza_N','presion_Pa','presion_kPa','presion_MPa','presion_kgf_cm2']
 
 
 def data_rows(session):
+    area=(session.get('configuration') or {}).get('specimen_area_mm2')
     for row in session['samples']:
-        yield [row['t'], row['vf'], row['vd'], row['force_kp'], row['force_kp']*.00980665, row['deformation_mm']]
+        force=row['force_kp']
+        try: pressure=[from_kp(force,u,area) for u in ('Pa','kPa','MPa','kgf/cm²')]
+        except ValueError: pressure=['','','','']
+        yield [row['t'], row['vf'], row['vd'], force, from_kp(force,'kN'), row['deformation_mm'],
+               from_kp(force,'kgf'), from_kp(force,'N'), *pressure]
 
 
 def csv_text(session):
@@ -39,17 +46,49 @@ def moving_average(values, window):
     return result
 
 
-def chart_series(session, kind, unit='kp', window=1):
-    rows=session['samples']; times=[r['t']-rows[0]['t'] for r in rows]
-    factor=.00980665 if unit=='kN' else 1
-    force=moving_average([r['force_kp']*factor for r in rows],window)
-    deform=moving_average([r['deformation_mm'] for r in rows],window)
+def median_filter(values, window):
+    """Mediana causal: elimina picos aislados sin mirar datos futuros."""
+    result=[]
+    for index,value in enumerate(values):
+        sample=[v for v in values[max(0,index-window+1):index+1] if v is not None]
+        result.append(sorted(sample)[len(sample)//2] if sample else value)
+    return result
+
+
+def filter_values(values, method='Sin filtro', window=1):
+    window=max(1,int(window))
+    if method == 'Media móvil': return moving_average(values,window)
+    if method == 'Mediana': return median_filter(values,window)
+    return list(values)
+
+
+def selected_indices(rows, range_filter='Todo'):
+    """El tramo histórico 5–95 % se limita al ascenso anterior al primer pico."""
+    if range_filter == 'Todo' or not rows: return list(range(len(rows)))
+    peak_index=max(range(len(rows)),key=lambda i: rows[i]['force_kp'])
+    peak=rows[peak_index]['force_kp']; lower=.05*peak
+    if range_filter == 'Ascenso 5–95 %':
+        return [i for i in range(peak_index+1) if lower <= rows[i]['force_kp'] <= .95*peak]
+    if range_filter == 'Desde 5 %':
+        return [i for i,row in enumerate(rows) if row['force_kp'] >= lower]
+    return list(range(len(rows)))
+
+
+def chart_series(session, kind, unit='kp', window=1, method='Sin filtro', range_filter='Todo'):
+    original=session['samples']
+    indices=selected_indices(original,range_filter)
+    rows=[original[i] for i in indices]
+    if not rows: return [([],[],'Sin puntos en el tramo elegido')], 'Tiempo (s)', unit
+    area=(session.get('configuration') or {}).get('specimen_area_mm2')
+    times=[r['t']-rows[0]['t'] for r in rows]
+    force=filter_values([from_kp(r['force_kp'],unit,area) for r in rows],method,window)
+    deform=filter_values([r['deformation_mm'] for r in rows],method,window)
     if kind=='fd': return [(deform,force,'Carga')], 'Deformación (mm)', f'Fuerza ({unit})'
     if kind=='ft': return [(times,force,'Carga')], 'Tiempo (s)', f'Fuerza ({unit})'
     if kind=='dt': return [(times,deform,'Deformación')], 'Tiempo (s)', 'Deformación (mm)'
     if kind=='volts':
-        return [(times,moving_average([r['vf'] for r in rows],window),'Fuerza'),
-                (times,moving_average([r['vd'] for r in rows],window),'Deformación')], 'Tiempo (s)', 'Voltaje (V)'
+        return [(times,filter_values([r['vf'] for r in rows],method,window),'Fuerza'),
+                (times,filter_values([r['vd'] for r in rows],method,window),'Deformación')], 'Tiempo (s)', 'Voltaje (V)'
     if kind=='speed':
         # Diferencias sobre una ventana de al menos 0,5 s para reducir ruido.
         x=[]; y=[]; j=0
@@ -62,12 +101,12 @@ def chart_series(session, kind, unit='kp', window=1):
     raise ValueError('Gráfica desconocida.')
 
 
-def draw_chart(ax, sessions, kind, unit='kp', window=1):
+def draw_chart(ax, sessions, kind, unit='kp', window=1, method='Sin filtro', range_filter='Todo'):
     ax.clear(); ax.set_facecolor('#f8fafc'); ax.grid(alpha=.18)
     ax.set_title(CHARTS[kind],loc='left',fontweight='bold',pad=14)
     visible=False
     for n,session in enumerate(sessions):
-        series,xlabel,ylabel=chart_series(session,kind,unit,window)
+        series,xlabel,ylabel=chart_series(session,kind,unit,window,method,range_filter)
         for j,(xs,ys,label) in enumerate(series):
             if not any(y is not None and math.isfinite(y) for y in ys): continue
             visible=True
@@ -80,9 +119,10 @@ def draw_chart(ax, sessions, kind, unit='kp', window=1):
                     color=COLORS[n%len(COLORS)] if len(sessions)>1 else COLORS[j],
                     linestyle='--' if j else '-',linewidth=1.6,label=f'{name} · {label}')
         ax.set_xlabel(xlabel); ax.set_ylabel(ylabel)
-        if kind=='fd' and window==1:
+        if kind=='fd' and method=='Sin filtro' and range_filter=='Todo':
             peak=max(session['samples'],key=lambda r:r['force_kp'])
-            ax.scatter([peak['deformation_mm']],[peak['force_kp']*(.00980665 if unit=='kN' else 1)],color=COLORS[n%len(COLORS)],s=28,zorder=4)
+            area=(session.get('configuration') or {}).get('specimen_area_mm2')
+            ax.scatter([peak['deformation_mm']],[from_kp(peak['force_kp'],unit,area)],color=COLORS[n%len(COLORS)],s=28,zorder=4)
     if visible: ax.legend(fontsize=8,loc='best')
     else: ax.text(.5,.5,'Sin datos disponibles para esta gráfica',ha='center',va='center',transform=ax.transAxes,color='#64748b')
 
@@ -92,6 +132,22 @@ def figure_for(session, kind):
     fig=Figure(figsize=(8,4.5),dpi=120,constrained_layout=True)
     draw_chart(fig.add_subplot(111),[session],kind)
     return fig
+
+
+def filtered_csv_text(session, method='Sin filtro', window=1, range_filter='Todo'):
+    """CSV de análisis: contiene sólo la selección y los valores mostrados."""
+    rows=session['samples']; indices=selected_indices(rows,range_filter)
+    area=(session.get('configuration') or {}).get('specimen_area_mm2')
+    forces=filter_values([rows[i]['force_kp'] for i in indices],method,window)
+    deformations=filter_values([rows[i]['deformation_mm'] for i in indices],method,window)
+    out=io.StringIO(newline=''); writer=csv.writer(out,delimiter=';')
+    writer.writerow(['tiempo_s','fuerza_kp_filtrada','fuerza_kgf_filtrada','fuerza_N_filtrada','fuerza_kN_filtrada','deformacion_mm_filtrada','presion_MPa_filtrada','presion_kgf_cm2_filtrada'])
+    for index,force,deformation in zip(indices,forces,deformations):
+        row=rows[index]
+        try: pressure=[from_kp(force,u,area) for u in ('MPa','kgf/cm²')]
+        except ValueError: pressure=['','']
+        writer.writerow([row['t'],force,from_kp(force,'kgf'),from_kp(force,'N'),from_kp(force,'kN'),deformation,*pressure])
+    return out.getvalue()
 
 
 def html_report(session):

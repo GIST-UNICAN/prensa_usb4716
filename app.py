@@ -22,6 +22,8 @@ from sessions import timestamp
 from branding import BrandingUI, DEFAULT_LOGO, pdf_page_branding
 from hardware import validate_hardware, WIRING_HELP
 from measurement import number, fit_calibration
+from units import available_units, from_kp, is_pressure, unit_title
+from exports import csv_text
 
 try:
     from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
@@ -69,6 +71,8 @@ DEFAULT_CONFIG = {
     "tare_samples": 100,
     "saturation_voltage": 4.95,
     "output_directory": "ensayos",
+    "display_unit": "kp",
+    "specimen_area_mm2": 0.0,
     "pinout": {
         "legacy_force_high": 1,
         "legacy_force_low": 20,
@@ -121,6 +125,7 @@ class App(BrandingUI, AnalysisUI, Workbench, tk.Tk):
         self.max_force_var = tk.StringVar(value="0")
         self.max_def_var = tk.StringVar(value="0.00")
         self.volts_var = tk.StringVar(value="AI fuerza: -- V | AI deformacion: -- V")
+        self.display_unit = tk.StringVar(value=self.cfg.get("display_unit", "kp"))
 
         self._build_ui()
         self.build_workbench()
@@ -206,10 +211,10 @@ class App(BrandingUI, AnalysisUI, Workbench, tk.Tk):
 
         values = ttk.Frame(self.tab_test, padding=(10,0,10,8))
         values.pack(fill="x")
-        self._value_box(values, "FUERZA ACTUAL", self.current_force, "kp", 0,
+        self._value_box(values, "LECTURA ACTUAL", self.current_force, self.display_unit.get(), 0,
                         "Fuerza calculada a partir del voltaje de fuerza, la tara y la calibracion activa.")
-        self._value_box(values, "FUERZA ACTUAL", self.current_kn, "kN", 1,
-                        "Conversion automatica de kp a kN usando 1 kp = 9.80665 N.")
+        self._value_box(values, "FUERZA SI", self.current_kn, "kN", 1,
+                        "Conversión SI usando 1 kp = 9,80665 N.")
         self._value_box(values, "DEFORMACION", self.current_def, "mm", 2,
                         "Deformacion calculada a partir del segundo canal analogico.")
         self._value_box(values, "FUERZA MAXIMA", self.max_force_var, "kp", 3,
@@ -241,6 +246,9 @@ class App(BrandingUI, AnalysisUI, Workbench, tk.Tk):
 
         bottom = ttk.Frame(self.tab_test, padding=(10,0,10,10))
         bottom.pack(fill="x")
+        ttk.Label(bottom,text="Mostrar en").pack(side="left",padx=(0,4))
+        units=ttk.Combobox(bottom,textvariable=self.display_unit,values=available_units(self.cfg.get('specimen_area_mm2')),state='readonly',width=10)
+        units.pack(side="left"); units.bind("<<ComboboxSelected>>",lambda _:self._display_unit_changed())
         ttk.Label(bottom, textvariable=self.volts_var).pack(side="left")
         ttk.Label(bottom, text=f"Saturacion configurada: +/-{self.cfg['saturation_voltage']} V").pack(side="right")
 
@@ -252,6 +260,20 @@ class App(BrandingUI, AnalysisUI, Workbench, tk.Tk):
         ttk.Label(line, textvariable=variable, font=("Consolas", 24, "bold")).pack(side="left", expand=True)
         self._info_button(line, title, info).pack(side="right")
         ttk.Label(f, text=unit).pack()
+
+    def _display_unit_changed(self):
+        """La selección es de presentación; la adquisición continúa en kp."""
+        self.cfg['display_unit']=self.display_unit.get()
+        self._update_table_headers(); self._rebuild_table()
+        if self.samples:
+            peak=max(self.samples,key=lambda s:s.force_kp)
+            self.max_force_var.set(f"{from_kp(peak.force_kp,self.display_unit.get(),self.cfg.get('specimen_area_mm2')):.3f}")
+        self._redraw_plots()
+
+    def _update_table_headers(self):
+        if not hasattr(self,'tree'): return
+        unit=self.display_unit.get()
+        self.tree.heading('force',text=unit_title(unit)+f' ({unit})')
 
     def _build_data_tab(self):
         bar = ttk.Frame(self.tab_data, padding=10)
@@ -266,7 +288,7 @@ class App(BrandingUI, AnalysisUI, Workbench, tk.Tk):
         frame = ttk.Frame(self.tab_data, padding=(10,0,10,10)); frame.pack(fill="both", expand=True)
         self.data_frame = frame
         self.tree = ttk.Treeview(frame, columns=cols, show="headings", height=22)
-        headers = {"t":"Tiempo (s)","vf":"V fuerza","vd":"V deform.","force":"Fuerza (kp)","kn":"Fuerza (kN)","def":"Deform. (mm)"}
+        headers = {"t":"Tiempo (s)","vf":"V fuerza","vd":"V deform.","force":unit_title(self.display_unit.get())+f" ({self.display_unit.get()})","kn":"Fuerza (kN)","def":"Deform. (mm)"}
         for c in cols:
             self.tree.heading(c, text=headers[c])
             self.tree.column(c, width=125, anchor="center")
@@ -294,6 +316,7 @@ class App(BrandingUI, AnalysisUI, Workbench, tk.Tk):
             ("display_average_samples", "Promedio del indicador (muestras)", int, "Media móvil de los indicadores. El registro y las gráficas conservan las lecturas sin suavizar."),
             ("tare_samples", "Muestras para tara", int, "Numero de lecturas utilizadas para calcular el cero."),
             ("saturation_voltage", "Aviso saturacion (V)", float, "Umbral absoluto de voltaje a partir del cual se muestra aviso de proximidad al limite."),
+            ("specimen_area_mm2", "Área de probeta (mm²; 0 desactiva presión)", float, "Necesaria para ver y exportar Pa, kPa, MPa y kgf/cm². La fuerza interna no cambia."),
         ]
         for r,(key,label,_,helptext) in enumerate(fields):
             ttk.Label(gen,text=label).grid(row=r,column=0,sticky="w",padx=10,pady=8)
@@ -405,6 +428,8 @@ class App(BrandingUI, AnalysisUI, Workbench, tk.Tk):
             candidate["display_average_samples"]=int(self.cfg_vars["display_average_samples"].get())
             candidate["tare_samples"]=int(self.cfg_vars["tare_samples"].get())
             candidate["saturation_voltage"]=float(self.cfg_vars["saturation_voltage"].get())
+            candidate["specimen_area_mm2"]=float(self.cfg_vars["specimen_area_mm2"].get())
+            candidate["display_unit"]=self.display_unit.get()
             p={k:int(v.get()) for k,v in self.pin_vars.items()}
             if p["usb_force_minus"] != p["usb_force_plus"]+1 or p["usb_deformation_minus"] != p["usb_deformation_plus"]+1:
                 raise ValueError("En modo diferencial, cada AI- debe ser el canal consecutivo a su AI+ (0/1, 2/3, 4/5...).")
@@ -423,7 +448,7 @@ class App(BrandingUI, AnalysisUI, Workbench, tk.Tk):
             candidate["force_offset_kp"]=float(self.cal_vars["force_offset"].get())
             candidate["deformation_factor_mm_per_v"]=float(self.cal_vars["def_factor"].get())
             candidate["deformation_offset_mm"]=float(self.cal_vars["def_offset"].get())
-            for key in ("sample_hz", "saturation_voltage", "force_factor_kp_per_v", "deformation_factor_mm_per_v", "force_offset_kp", "deformation_offset_mm"):
+            for key in ("sample_hz", "saturation_voltage", "specimen_area_mm2", "force_factor_kp_per_v", "deformation_factor_mm_per_v", "force_offset_kp", "deformation_offset_mm"):
                 number(candidate[key])
             if not 1 <= candidate["sample_hz"] <= 1000:
                 raise ValueError("Frecuencia permitida: 1–1000 Hz.")
@@ -431,6 +456,10 @@ class App(BrandingUI, AnalysisUI, Workbench, tk.Tk):
                 raise ValueError("El número de muestras debe ser positivo y estar dentro de los límites.")
             if not 0 < candidate["saturation_voltage"] <= 5:
                 raise ValueError("Saturación permitida: mayor que 0 y hasta 5 V.")
+            if candidate['specimen_area_mm2'] < 0:
+                raise ValueError('El área de probeta debe ser 0 o positiva.')
+            if candidate['display_unit'] not in available_units(candidate['specimen_area_mm2']):
+                raise ValueError('La unidad elegida requiere un área de probeta positiva.')
             if not candidate["force_factor_kp_per_v"] or not candidate["deformation_factor_mm_per_v"]:
                 raise ValueError("Los factores no pueden ser cero.")
             validate_hardware(candidate)
@@ -438,6 +467,7 @@ class App(BrandingUI, AnalysisUI, Workbench, tk.Tk):
             tmp.write_text(json.dumps(candidate,indent=2,ensure_ascii=False),encoding="utf-8")
             tmp.replace(self.cfg_path)
             self.cfg=candidate
+            self._display_unit_changed()
             self.zero_force_v=self.zero_deform_v=0.0
             self.force_window=deque(maxlen=int(candidate["display_average_samples"]))
             self.deform_window=deque(maxlen=int(candidate["display_average_samples"]))
@@ -449,19 +479,23 @@ class App(BrandingUI, AnalysisUI, Workbench, tk.Tk):
         if not MPL_OK: return
         self.ax_fd.clear(); self.ax_ft.clear()
         self.ax_fd.set_title("Fuerza - deformacion")
-        self.ax_fd.set_xlabel("Deformacion (mm)"); self.ax_fd.set_ylabel("Fuerza (kp)"); self.ax_fd.grid(True,alpha=.25)
+        unit=self.display_unit.get(); label=unit_title(unit)
+        self.ax_fd.set_xlabel("Deformacion (mm)"); self.ax_fd.set_ylabel(f"{label} ({unit})"); self.ax_fd.grid(True,alpha=.25)
         self.ax_ft.set_title("Fuerza - tiempo")
-        self.ax_ft.set_xlabel("Tiempo (s)"); self.ax_ft.set_ylabel("Fuerza (kp)"); self.ax_ft.grid(True,alpha=.25)
+        self.ax_ft.set_xlabel("Tiempo (s)"); self.ax_ft.set_ylabel(f"{label} ({unit})"); self.ax_ft.grid(True,alpha=.25)
 
     def _redraw_plots(self):
         if not MPL_OK: return
         self._format_axes()
         if self.samples:
-            self.ax_fd.plot([s.deformation_mm for s in self.samples],[s.force_kp for s in self.samples],linewidth=1.5)
-            self.ax_ft.plot([s.t for s in self.samples],[s.force_kp for s in self.samples],linewidth=1.5,color="#0891b2")
+            unit=self.display_unit.get(); area=self.cfg.get('specimen_area_mm2')
+            shown=[from_kp(s.force_kp,unit,area) for s in self.samples]
+            self.ax_fd.plot([s.deformation_mm for s in self.samples],shown,linewidth=1.5)
+            self.ax_ft.plot([s.t for s in self.samples],shown,linewidth=1.5,color="#0891b2")
             peak=max(self.samples,key=lambda s:s.force_kp)
-            self.ax_fd.scatter([peak.deformation_mm],[peak.force_kp],color="#f97316",zorder=4)
-            self.ax_fd.annotate(f"Pico {peak.force_kp:.1f} kp",(peak.deformation_mm,peak.force_kp),xytext=(0,10),textcoords="offset points",ha="center")
+            peak_value=from_kp(peak.force_kp,unit,area)
+            self.ax_fd.scatter([peak.deformation_mm],[peak_value],color="#f97316",zorder=4)
+            self.ax_fd.annotate(f"Pico {peak_value:.2f} {unit}",(peak.deformation_mm,peak_value),xytext=(0,10),textcoords="offset points",ha="center")
         self.canvas.draw()
         self.last_plot=time.perf_counter()
 
@@ -543,8 +577,10 @@ class App(BrandingUI, AnalysisUI, Workbench, tk.Tk):
         avf=sum(self.force_window)/len(self.force_window); avd=sum(self.deform_window)/len(self.deform_window)
         force=(avf-self.zero_force_v)*float(self.cfg["force_factor_kp_per_v"])+float(self.cfg.get("force_offset_kp",0.0))
         deform=(avd-self.zero_deform_v)*float(self.cfg["deformation_factor_mm_per_v"])+float(self.cfg.get("deformation_offset_mm",0.0))
-        kn=force*9.80665/1000.0
-        self.current_force.set(f"{force:.0f}"); self.current_kn.set(f"{kn:.3f}"); self.current_def.set(f"{deform:.2f}")
+        kn=from_kp(force,'kN')
+        try: shown=from_kp(force,self.display_unit.get(),self.cfg.get('specimen_area_mm2'))
+        except ValueError: shown=force
+        self.current_force.set(f"{shown:.3f}"); self.current_kn.set(f"{kn:.3f}"); self.current_def.set(f"{deform:.2f}")
         if self.recording:
             if self.t0 is None:self.t0=now
             # Archivo sin suavizado: cada lectura conserva su voltaje y conversión.
@@ -553,7 +589,7 @@ class App(BrandingUI, AnalysisUI, Workbench, tk.Tk):
             sample=Sample(now-self.t0,vf,vd,raw_force,raw_def)
             self.samples.append(sample); self.dirty=True
             if len(self.samples)==1 or raw_force>self.max_force:
-                self.max_force=raw_force; self.max_force_var.set(f"{raw_force:.2f}")
+                self.max_force=raw_force; self.max_force_var.set(f"{from_kp(raw_force,self.display_unit.get(),self.cfg.get('specimen_area_mm2')):.3f}")
             if len(self.samples)==1 or raw_def>self.max_deformation:
                 self.max_deformation=raw_def; self.max_def_var.set(f"{raw_def:.3f}")
             if len(self.samples)%10==0:self._refresh_table_tail()
@@ -566,7 +602,7 @@ class App(BrandingUI, AnalysisUI, Workbench, tk.Tk):
         for s in self.samples[max(0,len(self.samples)-10):]:
             tag=f"{s.t:.5f}"
             if self.tree.exists(tag):continue
-            self.tree.insert("", "end", iid=tag, values=(f"{s.t:.3f}",f"{s.vf:.5f}",f"{s.vd:.5f}",f"{s.force_kp:.2f}",f"{s.force_kp*9.80665/1000:.4f}",f"{s.deformation_mm:.4f}"))
+            self.tree.insert("", "end", iid=tag, values=(f"{s.t:.3f}",f"{s.vf:.5f}",f"{s.vd:.5f}",f"{from_kp(s.force_kp,self.display_unit.get(),self.cfg.get('specimen_area_mm2')):.3f}",f"{from_kp(s.force_kp,'kN'):.4f}",f"{s.deformation_mm:.4f}"))
 
     def tare(self):
         if not self.connected or self.recording:return
@@ -610,7 +646,7 @@ class App(BrandingUI, AnalysisUI, Workbench, tk.Tk):
     def _rebuild_table(self):
         self._clear_table()
         for i,s in enumerate(self.samples):
-            self.tree.insert("","end",iid=f"row{i}",values=(f"{s.t:.3f}",f"{s.vf:.5f}",f"{s.vd:.5f}",f"{s.force_kp:.2f}",f"{s.force_kp*9.80665/1000:.4f}",f"{s.deformation_mm:.4f}"))
+            self.tree.insert("","end",iid=f"row{i}",values=(f"{s.t:.3f}",f"{s.vf:.5f}",f"{s.vd:.5f}",f"{from_kp(s.force_kp,self.display_unit.get(),self.cfg.get('specimen_area_mm2')):.3f}",f"{from_kp(s.force_kp,'kN'):.4f}",f"{s.deformation_mm:.4f}"))
 
     def _outdir(self):
         out=BASE/self.cfg.get("output_directory","ensayos"); out.mkdir(parents=True,exist_ok=True); return out
@@ -624,8 +660,7 @@ class App(BrandingUI, AnalysisUI, Workbench, tk.Tk):
         if not path:return
         try:
             with open(path,"w",newline="",encoding="utf-8-sig") as f:
-                w=csv.writer(f,delimiter=";"); w.writerow(["tiempo_s","voltaje_fuerza_V","voltaje_deformacion_V","fuerza_kp","fuerza_kN","deformacion_mm"])
-                for s in self.samples:w.writerow([f"{s.t:.6f}",f"{s.vf:.9f}",f"{s.vd:.9f}",f"{s.force_kp:.6f}",f"{s.force_kp*9.80665/1000:.9f}",f"{s.deformation_mm:.8f}"])
+                f.write(csv_text(self.current_session()))
             metadata=dict(configuration=self.test_context, reference=self.test_name.get(), operator=self.operator.get(), sample_id=self.sample_id.get(), notes=self.notes.get(), demo=self.session_demo, acquired_at=self.acquired_at)
             Path(path).with_suffix(".metadata.json").write_text(json.dumps(metadata,indent=2,ensure_ascii=False),encoding="utf-8")
             self.dirty=False
@@ -636,12 +671,14 @@ class App(BrandingUI, AnalysisUI, Workbench, tk.Tk):
     def _save_plot_file(self,path,kind):
         if not MPL_OK: raise RuntimeError("Matplotlib no esta instalado")
         fig=Figure(figsize=(8.5,5.2),dpi=150,constrained_layout=True); ax=fig.add_subplot(111)
+        unit=self.display_unit.get(); area=self.cfg.get('specimen_area_mm2'); label=unit_title(unit)
+        shown=[from_kp(s.force_kp,unit,area) for s in self.samples]
         if kind=="fd":
-            ax.set_title("Curva fuerza - deformacion"); ax.set_xlabel("Deformacion (mm)"); ax.set_ylabel("Fuerza (kp)")
-            ax.plot([s.deformation_mm for s in self.samples],[s.force_kp for s in self.samples],linewidth=1.7)
+            ax.set_title(f"Curva {label.lower()} - deformacion"); ax.set_xlabel("Deformacion (mm)"); ax.set_ylabel(f"{label} ({unit})")
+            ax.plot([s.deformation_mm for s in self.samples],shown,linewidth=1.7)
         else:
-            ax.set_title("Fuerza - tiempo"); ax.set_xlabel("Tiempo (s)"); ax.set_ylabel("Fuerza (kp)")
-            ax.plot([s.t for s in self.samples],[s.force_kp for s in self.samples],linewidth=1.7)
+            ax.set_title(f"{label} - tiempo"); ax.set_xlabel("Tiempo (s)"); ax.set_ylabel(f"{label} ({unit})")
+            ax.plot([s.t for s in self.samples],shown,linewidth=1.7)
         ax.grid(True,alpha=.25); fig.savefig(path,dpi=180,bbox_inches="tight")
 
     def export_png(self,kind):
@@ -676,14 +713,14 @@ class App(BrandingUI, AnalysisUI, Workbench, tk.Tk):
         if self.test_context is None:
             raise ValueError("Este archivo no contiene la configuración de adquisición original. Exporte sus datos a CSV o PNG.")
         cfg=self.test_context
-        doc=SimpleDocTemplate(path,pagesize=landscape(A4),rightMargin=14*mm,leftMargin=14*mm,topMargin=33*mm,bottomMargin=16*mm)
+        doc=SimpleDocTemplate(str(path),pagesize=landscape(A4),rightMargin=14*mm,leftMargin=14*mm,topMargin=33*mm,bottomMargin=16*mm)
         styles=getSampleStyleSheet(); title=ParagraphStyle("Title2",parent=styles["Title"],alignment=TA_CENTER,fontSize=18,leading=22,spaceAfter=10)
         story=[Paragraph("Informe de ensayo - Prensa Marshall",title)]
         meta=[
             ["Referencia",self.test_name.get() or "-","Probeta",self.sample_id.get() or "-"],
             ["Operador",self.operator.get() or "-","Adquisición",self.acquired_at or "No disponible"],
             ["Origen", "SIMULACIÓN" if self.session_demo is True else "REAL" if self.session_demo is False else "No verificado", "Informe",datetime.now().strftime("%d/%m/%Y %H:%M")],
-            ["Fuerza maxima",f"{self.max_force:.2f} kp ({self.max_force*9.80665/1000:.4f} kN)","Deformacion maxima",f"{self.max_deformation:.4f} mm"],
+            ["Fuerza máxima",f"{self.max_force:.3f} kp / {from_kp(self.max_force,'kgf'):.3f} kgf / {from_kp(self.max_force,'N'):.2f} N / {from_kp(self.max_force,'kN'):.4f} kN","Deformación máxima",f"{self.max_deformation:.4f} mm"],
             ["Duracion",f"{self.samples[-1].t:.2f} s","Puntos",str(len(self.samples))],
             ["Notas",self.notes.get() or "-","Dispositivo",cfg["device_description"]],
         ]
@@ -705,10 +742,13 @@ class App(BrandingUI, AnalysisUI, Workbench, tk.Tk):
         ct=Table(conf,colWidths=[45*mm,80*mm,80*mm],repeatRows=1)
         ct.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),colors.HexColor("#DCE6F1")),("FONTNAME",(0,0),(-1,0),"Helvetica-Bold"),("GRID",(0,0),(-1,-1),.35,colors.grey),("ALIGN",(1,1),(-1,-1),"CENTER"),("FONTSIZE",(0,0),(-1,-1),9),("VALIGN",(0,0),(-1,-1),"MIDDLE"),("TOPPADDING",(0,0),(-1,-1),5),("BOTTOMPADDING",(0,0),(-1,-1),5)]))
         story += [Paragraph("Configuracion y calibracion",styles["Heading2"]),ct,PageBreak(),Paragraph("Graficas",styles["Heading2"]),Table([[Image(str(pfd),width=122*mm,height=74*mm),Image(str(pft),width=122*mm,height=74*mm)]],colWidths=[130*mm,130*mm]),PageBreak(),Paragraph("Tabla de datos",styles["Heading2"])]
-        data=[["t (s)","V fuerza","V deform.","Fuerza (kp)","Fuerza (kN)","Deform. (mm)"]]
+        area=cfg.get('specimen_area_mm2')
+        data=[["t (s)","V fuerza","V deform.","kp","kgf","N","kN","MPa","kgf/cm²","Def. (mm)"]]
         for s in self.samples:
-            data.append([f"{s.t:.3f}",f"{s.vf:.6f}",f"{s.vd:.6f}",f"{s.force_kp:.3f}",f"{s.force_kp*9.80665/1000:.5f}",f"{s.deformation_mm:.5f}"])
-        dt=Table(data,colWidths=[30*mm,36*mm,36*mm,38*mm,38*mm,38*mm],repeatRows=1)
+            try: pressure=[f"{from_kp(s.force_kp,u,area):.5g}" for u in ('MPa','kgf/cm²')]
+            except ValueError: pressure=['—','—']
+            data.append([f"{s.t:.3f}",f"{s.vf:.6f}",f"{s.vd:.6f}",f"{s.force_kp:.3f}",f"{from_kp(s.force_kp,'kgf'):.3f}",f"{from_kp(s.force_kp,'N'):.2f}",f"{from_kp(s.force_kp,'kN'):.5f}",*pressure,f"{s.deformation_mm:.5f}"])
+        dt=Table(data,colWidths=[22*mm,27*mm,27*mm,22*mm,22*mm,25*mm,23*mm,22*mm,24*mm,25*mm],repeatRows=1)
         dt.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),colors.HexColor("#DCE6F1")),("FONTNAME",(0,0),(-1,0),"Helvetica-Bold"),("GRID",(0,0),(-1,-1),.25,colors.HexColor("#B0B0B0")),("ALIGN",(0,0),(-1,-1),"CENTER"),("FONTSIZE",(0,0),(-1,-1),7.5),("LEADING",(0,0),(-1,-1),9),("TOPPADDING",(0,0),(-1,-1),2),("BOTTOMPADDING",(0,0),(-1,-1),2)]))
         story.append(dt)
         branding=pdf_page_branding(self.cfg)
