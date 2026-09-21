@@ -7,6 +7,7 @@ from pathlib import Path
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from measurement import number, fit_calibration, read_legacy
+from theme import UC_DEEP, UC_PRIMARY
 
 
 class Workbench:
@@ -100,9 +101,9 @@ class Workbench:
         if self.cal_canvas:
             ax=self.cal_ax; ax.clear(); ax.set_xlabel('Voltaje bruto (V)'); ax.set_ylabel(self.cal_channel.get()); ax.grid(alpha=.2)
             if self.cal_points:
-                x,y=zip(*self.cal_points); ax.scatter(x,y,color='#0891b2',label='Patrones')
+                x,y=zip(*self.cal_points); ax.scatter(x,y,color=UC_PRIMARY,label='Patrones')
                 if fit:
-                    ends=[min(x),max(x)]; ax.plot(ends,[fit['factor']*v+fit['offset'] for v in ends],color='#4338ca',label='Ajuste')
+                    ends=[min(x),max(x)]; ax.plot(ends,[fit['factor']*v+fit['offset'] for v in ends],color=UC_DEEP,label='Ajuste')
                 ax.legend()
             self.cal_canvas.draw_idle()
 

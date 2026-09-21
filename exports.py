@@ -10,13 +10,14 @@ import zipfile
 from pathlib import Path
 from sessions import dumps_session, session_summary
 from units import from_kp
+from theme import UC_BACKGROUND, UC_CHART_COLORS, UC_DEEP, UC_INK, UC_PALE, UC_PRIMARY
 
 CHARTS = {
     'fd': 'Fuerza · deformación', 'ft': 'Fuerza · tiempo',
     'dt': 'Deformación · tiempo', 'volts': 'Voltajes · tiempo',
     'speed': 'Velocidad · tiempo',
 }
-COLORS = ['#2563eb', '#0891b2', '#e87924', '#7c3aed', '#be185d', '#15803d']
+COLORS = UC_CHART_COLORS
 HEADERS = ['tiempo_s','voltaje_fuerza_V','voltaje_deformacion_V','fuerza_kp','fuerza_kN','deformacion_mm',
            'fuerza_kgf','fuerza_N','presion_Pa','presion_kPa','presion_MPa','presion_kgf_cm2']
 
@@ -102,7 +103,7 @@ def chart_series(session, kind, unit='kp', window=1, method='Sin filtro', range_
 
 
 def draw_chart(ax, sessions, kind, unit='kp', window=1, method='Sin filtro', range_filter='Todo'):
-    ax.clear(); ax.set_facecolor('#f8fafc'); ax.grid(alpha=.18)
+    ax.clear(); ax.set_facecolor(UC_BACKGROUND); ax.grid(alpha=.18,color=UC_PRIMARY)
     ax.set_title(CHARTS[kind],loc='left',fontweight='bold',pad=14)
     visible=False
     for n,session in enumerate(sessions):
@@ -124,7 +125,7 @@ def draw_chart(ax, sessions, kind, unit='kp', window=1, method='Sin filtro', ran
             area=(session.get('configuration') or {}).get('specimen_area_mm2')
             ax.scatter([peak['deformation_mm']],[from_kp(peak['force_kp'],unit,area)],color=COLORS[n%len(COLORS)],s=28,zorder=4)
     if visible: ax.legend(fontsize=8,loc='best')
-    else: ax.text(.5,.5,'Sin datos disponibles para esta gráfica',ha='center',va='center',transform=ax.transAxes,color='#64748b')
+    else: ax.text(.5,.5,'Sin datos disponibles para esta gráfica',ha='center',va='center',transform=ax.transAxes,color=UC_PRIMARY)
 
 
 def figure_for(session, kind):
@@ -163,7 +164,7 @@ def html_report(session):
     config=esc(json.dumps(session.get('configuration'),ensure_ascii=False,indent=2)) if session.get('configuration') else 'Configuración original no disponible.'
     return f'''<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{esc(meta.get('reference','Ensayo'))} · Marshall</title>
-<style>body{{font:15px system-ui,sans-serif;color:#172b4d;background:#eef3f9;margin:0}}main{{max-width:1100px;margin:auto;padding:32px}}h1{{font-size:32px}}.badge{{color:#0369a1;font-weight:700}}.cards{{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}}.card,section{{background:white;border-radius:14px;padding:18px;margin-bottom:18px}}small,strong{{display:block}}strong{{font-size:24px;margin-top:8px}}svg{{width:100%;height:auto}}.plots{{display:grid;grid-template-columns:1fr 1fr;gap:16px}}pre{{white-space:pre-wrap;overflow-wrap:anywhere}}@media(max-width:700px){{.cards,.plots{{grid-template-columns:1fr}}}}@media print{{body{{background:white}}section{{break-inside:avoid}}main{{padding:0}}}}</style>
+<style>body{{font:15px system-ui,sans-serif;color:{UC_INK};background:{UC_BACKGROUND};margin:0}}main{{max-width:1100px;margin:auto;padding:32px}}h1{{font-size:32px}}.badge{{color:{UC_DEEP};font-weight:700}}.cards{{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}}.card,section{{background:white;border-radius:14px;padding:18px;margin-bottom:18px;border-top:3px solid {UC_PALE}}}small,strong{{display:block}}strong{{font-size:24px;margin-top:8px}}svg{{width:100%;height:auto}}.plots{{display:grid;grid-template-columns:1fr 1fr;gap:16px}}pre{{white-space:pre-wrap;overflow-wrap:anywhere}}@media(max-width:700px){{.cards,.plots{{grid-template-columns:1fr}}}}@media print{{body{{background:white}}section{{break-inside:avoid}}main{{padding:0}}}}</style>
 <main><div class="badge">MARSHALL / {mode}</div><h1>{esc(meta.get('reference','Ensayo'))}</h1>
 <p>Probeta: {esc(meta.get('sample_id',''))} · Operador: {esc(meta.get('operator',''))}</p>
 <p>Adquisición: {esc(session.get('acquired_at') or 'No disponible')} · Archivo: {esc(session['saved_at'])} · {summary['points']} puntos</p>
@@ -198,7 +199,7 @@ def write_xlsx(session, path):
         chart.series.append(Series(Reference(data,min_col=ycol,min_row=2,max_row=data.max_row),Reference(data,min_col=xcol,min_row=2,max_row=data.max_row),title=title))
         chart.width=23; chart.height=12; plots.add_chart(chart,f'A{1+i*25}')
     for sheet in (summary,data,config):
-        for cell in sheet[1]: cell.font=Font(bold=True,color='FFFFFF'); cell.fill=PatternFill('solid',fgColor='18365A')
+        for cell in sheet[1]: cell.font=Font(bold=True,color='FFFFFF'); cell.fill=PatternFill('solid',fgColor=UC_DEEP[1:])
         for col in ('A','B','C','D','E','F'): sheet.column_dimensions[col].width=25
     summary.column_dimensions['B'].width=65; config.column_dimensions['B'].width=90
     wb.save(path)

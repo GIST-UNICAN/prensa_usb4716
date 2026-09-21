@@ -6,6 +6,7 @@ from uuid import uuid4
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from PIL import Image as PILImage, ImageTk
+from theme import UC_DEEP, UC_PRIMARY, UC_PALE
 
 BASE = Path(__file__).resolve().parent
 DEFAULT_LOGO = 'assets/uc_logo_2024.png'
@@ -27,10 +28,10 @@ def pdf_page_branding(config):
     def paint(canvas,doc):
         canvas.saveState(); page_width,page_height=doc.pagesize
         canvas.drawImage(reader,doc.leftMargin,page_height-25*mm,width=width*scale,height=height*scale,mask='auto')
-        canvas.setFillColorRGB(.09,.22,.32); canvas.setFont('Helvetica',10)
+        canvas.setFillColorRGB(.067,.369,.404); canvas.setFont('Helvetica',10)
         canvas.drawRightString(page_width-doc.rightMargin,page_height-15*mm,'Laboratorio de ensayo - Prensa Marshall')
-        canvas.setStrokeColorRGB(.8,.85,.9); canvas.line(doc.leftMargin,page_height-29*mm,page_width-doc.rightMargin,page_height-29*mm)
-        canvas.setFont('Helvetica',8); canvas.setFillColorRGB(.35,.4,.45)
+        canvas.setStrokeColorRGB(.714,.812,.816); canvas.line(doc.leftMargin,page_height-29*mm,page_width-doc.rightMargin,page_height-29*mm)
+        canvas.setFont('Helvetica',8); canvas.setFillColorRGB(.31,.525,.557)
         canvas.drawString(doc.leftMargin,8*mm,'Universidad de Cantabria | Adquisición de fuerza y deformación')
         canvas.drawRightString(page_width-doc.rightMargin,8*mm,f'Página {doc.page}')
         canvas.restoreState()

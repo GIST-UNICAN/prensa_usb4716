@@ -24,6 +24,7 @@ from hardware import validate_hardware, WIRING_HELP
 from measurement import number, fit_calibration
 from units import available_units, from_kp, is_pressure, unit_title
 from exports import csv_text
+from theme import UC_BACKGROUND, UC_DEEP, UC_INK, UC_MID, UC_PALE, UC_PRIMARY, UC_SOFT
 
 try:
     from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
@@ -146,14 +147,14 @@ class App(BrandingUI, AnalysisUI, Workbench, tk.Tk):
     def _build_ui(self):
         style = ttk.Style(self)
         style.theme_use("clam")
-        style.configure("TFrame", background="#f3f6fb")
-        style.configure("TLabel", background="#f3f6fb", foreground="#172b4d")
-        style.configure("TButton", padding=(10, 7), background="#e4edf8", foreground="#17345c", borderwidth=0)
-        style.map("TButton", background=[("active", "#d0e4fc"), ("disabled", "#edf1f6")])
-        style.configure("TLabelframe", background="#ffffff", bordercolor="#dbe5f2")
-        style.configure("TLabelframe.Label", background="#ffffff", foreground="#486080")
-        style.configure("TNotebook", background="#f3f6fb", borderwidth=0)
-        style.map("TNotebook.Tab", background=[("selected", "#ffffff")], foreground=[("selected", "#1d4ed8")])
+        style.configure("TFrame", background=UC_BACKGROUND)
+        style.configure("TLabel", background=UC_BACKGROUND, foreground=UC_INK)
+        style.configure("TButton", padding=(10, 7), background=UC_PALE, foreground=UC_DEEP, borderwidth=0)
+        style.map("TButton", background=[("active", UC_SOFT), ("disabled", "#e7eeee")])
+        style.configure("TLabelframe", background="#ffffff", bordercolor=UC_PALE)
+        style.configure("TLabelframe.Label", background="#ffffff", foreground=UC_DEEP)
+        style.configure("TNotebook", background=UC_BACKGROUND, borderwidth=0)
+        style.map("TNotebook.Tab", background=[("selected", "#ffffff")], foreground=[("selected", UC_DEEP)])
         style.configure("TNotebook.Tab", padding=(16, 9))
         style.configure("Treeview", rowheight=27)
         style.configure("Treeview.Heading", font=("Segoe UI", 10, "bold"))
@@ -491,10 +492,10 @@ class App(BrandingUI, AnalysisUI, Workbench, tk.Tk):
             unit=self.display_unit.get(); area=self.cfg.get('specimen_area_mm2')
             shown=[from_kp(s.force_kp,unit,area) for s in self.samples]
             self.ax_fd.plot([s.deformation_mm for s in self.samples],shown,linewidth=1.5)
-            self.ax_ft.plot([s.t for s in self.samples],shown,linewidth=1.5,color="#0891b2")
+            self.ax_ft.plot([s.t for s in self.samples],shown,linewidth=1.5,color=UC_PRIMARY)
             peak=max(self.samples,key=lambda s:s.force_kp)
             peak_value=from_kp(peak.force_kp,unit,area)
-            self.ax_fd.scatter([peak.deformation_mm],[peak_value],color="#f97316",zorder=4)
+            self.ax_fd.scatter([peak.deformation_mm],[peak_value],color=UC_DEEP,zorder=4)
             self.ax_fd.annotate(f"Pico {peak_value:.2f} {unit}",(peak.deformation_mm,peak_value),xytext=(0,10),textcoords="offset points",ha="center")
         self.canvas.draw()
         self.last_plot=time.perf_counter()
@@ -727,7 +728,7 @@ class App(BrandingUI, AnalysisUI, Workbench, tk.Tk):
         cell_style=ParagraphStyle("MetaCell",parent=styles["Normal"],fontSize=9,leading=11)
         meta=[[Paragraph(escape(str(value)),cell_style) for value in row] for row in meta]
         t=Table(meta,colWidths=[30*mm,75*mm,38*mm,100*mm])
-        t.setStyle(TableStyle([("BACKGROUND",(0,0),(0,-1),colors.HexColor("#E8EDF3")),("BACKGROUND",(2,0),(2,-1),colors.HexColor("#E8EDF3")),("FONTNAME",(0,0),(-1,-1),"Helvetica"),("FONTNAME",(0,0),(0,-1),"Helvetica-Bold"),("FONTNAME",(2,0),(2,-1),"Helvetica-Bold"),("FONTSIZE",(0,0),(-1,-1),9),("GRID",(0,0),(-1,-1),.35,colors.grey),("VALIGN",(0,0),(-1,-1),"MIDDLE"),("LEFTPADDING",(0,0),(-1,-1),6),("RIGHTPADDING",(0,0),(-1,-1),6),("TOPPADDING",(0,0),(-1,-1),5),("BOTTOMPADDING",(0,0),(-1,-1),5)]))
+        t.setStyle(TableStyle([("BACKGROUND",(0,0),(0,-1),colors.HexColor(UC_PALE)),("BACKGROUND",(2,0),(2,-1),colors.HexColor(UC_PALE)),("FONTNAME",(0,0),(-1,-1),"Helvetica"),("FONTNAME",(0,0),(0,-1),"Helvetica-Bold"),("FONTNAME",(2,0),(2,-1),"Helvetica-Bold"),("FONTSIZE",(0,0),(-1,-1),9),("GRID",(0,0),(-1,-1),.35,colors.HexColor(UC_SOFT)),("VALIGN",(0,0),(-1,-1),"MIDDLE"),("LEFTPADDING",(0,0),(-1,-1),6),("RIGHTPADDING",(0,0),(-1,-1),6),("TOPPADDING",(0,0),(-1,-1),5),("BOTTOMPADDING",(0,0),(-1,-1),5)]))
         story += [t,Spacer(1,7*mm)]
         p=cfg["pinout"]
         conf=[
@@ -740,7 +741,7 @@ class App(BrandingUI, AnalysisUI, Workbench, tk.Tk):
             ["Tara",f"{cfg['zero_force_v']:+.6f} V",f"{cfg['zero_deform_v']:+.6f} V"],
         ]
         ct=Table(conf,colWidths=[45*mm,80*mm,80*mm],repeatRows=1)
-        ct.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),colors.HexColor("#DCE6F1")),("FONTNAME",(0,0),(-1,0),"Helvetica-Bold"),("GRID",(0,0),(-1,-1),.35,colors.grey),("ALIGN",(1,1),(-1,-1),"CENTER"),("FONTSIZE",(0,0),(-1,-1),9),("VALIGN",(0,0),(-1,-1),"MIDDLE"),("TOPPADDING",(0,0),(-1,-1),5),("BOTTOMPADDING",(0,0),(-1,-1),5)]))
+        ct.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),colors.HexColor(UC_PALE)),("FONTNAME",(0,0),(-1,0),"Helvetica-Bold"),("GRID",(0,0),(-1,-1),.35,colors.HexColor(UC_SOFT)),("ALIGN",(1,1),(-1,-1),"CENTER"),("FONTSIZE",(0,0),(-1,-1),9),("VALIGN",(0,0),(-1,-1),"MIDDLE"),("TOPPADDING",(0,0),(-1,-1),5),("BOTTOMPADDING",(0,0),(-1,-1),5)]))
         story += [Paragraph("Configuracion y calibracion",styles["Heading2"]),ct,PageBreak(),Paragraph("Graficas",styles["Heading2"]),Table([[Image(str(pfd),width=122*mm,height=74*mm),Image(str(pft),width=122*mm,height=74*mm)]],colWidths=[130*mm,130*mm]),PageBreak(),Paragraph("Tabla de datos",styles["Heading2"])]
         area=cfg.get('specimen_area_mm2')
         data=[["t (s)","V fuerza","V deform.","kp","kgf","N","kN","MPa","kgf/cm²","Def. (mm)"]]
@@ -749,7 +750,7 @@ class App(BrandingUI, AnalysisUI, Workbench, tk.Tk):
             except ValueError: pressure=['—','—']
             data.append([f"{s.t:.3f}",f"{s.vf:.6f}",f"{s.vd:.6f}",f"{s.force_kp:.3f}",f"{from_kp(s.force_kp,'kgf'):.3f}",f"{from_kp(s.force_kp,'N'):.2f}",f"{from_kp(s.force_kp,'kN'):.5f}",*pressure,f"{s.deformation_mm:.5f}"])
         dt=Table(data,colWidths=[22*mm,27*mm,27*mm,22*mm,22*mm,25*mm,23*mm,22*mm,24*mm,25*mm],repeatRows=1)
-        dt.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),colors.HexColor("#DCE6F1")),("FONTNAME",(0,0),(-1,0),"Helvetica-Bold"),("GRID",(0,0),(-1,-1),.25,colors.HexColor("#B0B0B0")),("ALIGN",(0,0),(-1,-1),"CENTER"),("FONTSIZE",(0,0),(-1,-1),7.5),("LEADING",(0,0),(-1,-1),9),("TOPPADDING",(0,0),(-1,-1),2),("BOTTOMPADDING",(0,0),(-1,-1),2)]))
+        dt.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),colors.HexColor(UC_PALE)),("FONTNAME",(0,0),(-1,0),"Helvetica-Bold"),("GRID",(0,0),(-1,-1),.25,colors.HexColor(UC_SOFT)),("ALIGN",(0,0),(-1,-1),"CENTER"),("FONTSIZE",(0,0),(-1,-1),7.5),("LEADING",(0,0),(-1,-1),9),("TOPPADDING",(0,0),(-1,-1),2),("BOTTOMPADDING",(0,0),(-1,-1),2)]))
         story.append(dt)
         branding=pdf_page_branding(self.cfg)
         doc.build(story,onFirstPage=branding,onLaterPages=branding)
