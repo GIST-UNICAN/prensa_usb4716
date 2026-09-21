@@ -44,6 +44,10 @@ bridge\build_bridge.bat
 py app.py
 ```
 
+## Ejecutable Windows
+
+La compilación se realiza en Windows x64 con PyInstaller y se distribuye como carpeta `onedir`, junto a la DLL puente. Consulte [docs/COMPILAR_WINDOWS.md](docs/COMPILAR_WINDOWS.md); el script reproducible es `packaging/build_windows.bat`.
+
 ## Datos de prueba
 
 `sample_data/ensayo_marshall_simulado.json` es un ensayo sintético de 20 segundos y 401 muestras, con un pico próximo a 1.275 kp, deformación y ruido de adquisición. Ábralo desde **Historial > Importar ensayo JSON**; quedará archivado como simulación y puede compararse, filtrarse y exportarse. El CSV equivalente está en la misma carpeta. Para regenerarlos de forma determinista: `python tools/generate_demo_data.py`.

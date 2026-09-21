@@ -5,3 +5,6 @@ __pycache__/
 ensayos/
 tmp/
 output/pdf/historial.sqlite3
+build/
+dist/
+*.spec

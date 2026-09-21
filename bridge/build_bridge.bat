@@ -24,4 +24,4 @@ if errorlevel 1 exit /b 1
 
 echo.
 echo DLL creada correctamente: usb4716_bridge.dll
-pause
+if not defined NO_PAUSE pause

@@ -25,6 +25,7 @@ from measurement import number, fit_calibration
 from units import available_units, from_kp, is_pressure, unit_title
 from exports import csv_text
 from theme import UC_BACKGROUND, UC_DEEP, UC_INK, UC_MID, UC_PALE, UC_PRIMARY, UC_SOFT
+from paths import config_file, output_dir
 
 try:
     from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
@@ -95,7 +96,7 @@ class App(BrandingUI, AnalysisUI, Workbench, tk.Tk):
         self.minsize(1050, 700)
         self.protocol("WM_DELETE_WINDOW", self.on_close)
 
-        self.cfg_path = BASE / "config.json"
+        self.cfg_path = config_file()
         self.cfg = self._load_config()
         self.demo = demo
         self.daq = None
@@ -650,7 +651,7 @@ class App(BrandingUI, AnalysisUI, Workbench, tk.Tk):
             self.tree.insert("","end",iid=f"row{i}",values=(f"{s.t:.3f}",f"{s.vf:.5f}",f"{s.vd:.5f}",f"{from_kp(s.force_kp,self.display_unit.get(),self.cfg.get('specimen_area_mm2')):.3f}",f"{from_kp(s.force_kp,'kN'):.4f}",f"{s.deformation_mm:.4f}"))
 
     def _outdir(self):
-        out=BASE/self.cfg.get("output_directory","ensayos"); out.mkdir(parents=True,exist_ok=True); return out
+        return output_dir(self.cfg.get("output_directory","ensayos"))
 
     def save_csv(self):
         if self.recording:

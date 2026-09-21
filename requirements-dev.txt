@@ -1,2 +1,3 @@
 -r requirements.txt
 pypdf>=6
+pyinstaller>=6.22,<7
