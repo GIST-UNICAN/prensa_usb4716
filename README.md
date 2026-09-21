@@ -44,6 +44,10 @@ bridge\build_bridge.bat
 py app.py
 ```
 
+## Datos de prueba
+
+`sample_data/ensayo_marshall_simulado.json` es un ensayo sintético de 20 segundos y 401 muestras, con un pico próximo a 1.275 kp, deformación y ruido de adquisición. Ábralo desde **Historial > Importar ensayo JSON**; quedará archivado como simulación y puede compararse, filtrarse y exportarse. El CSV equivalente está en la misma carpeta. Para regenerarlos de forma determinista: `python tools/generate_demo_data.py`.
+
 ## Pinout PCL-816 → USB-4716 (contrastado con manuales)
 
 - Fuerza: DB37 pin 1 (H/+) y pin 20 (L/-) -> USB AI0 (+) / AI1 (-)
