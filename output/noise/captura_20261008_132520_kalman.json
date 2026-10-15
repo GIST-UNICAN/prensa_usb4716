@@ -1,0 +1,16 @@
+{
+  "note": "R estimado en t < 5 s; evaluación descriptiva en t >= 5 s. Sin referencia limpia: variación, no exactitud.",
+  "channels": {
+    "force": {
+      "raw_std_mv": 9.5112750500698,
+      "kalman_std_mv": 0.9386106149265303,
+      "std_reduction_percent": 90.131600547924
+    },
+    "deformation": {
+      "raw_std_mv": 2.8562082678134955,
+      "kalman_std_mv": 0.4736125415216764,
+      "std_reduction_percent": 83.41813701546913
+    }
+  },
+  "synthetic_step_t90_seconds": 0.34
+}

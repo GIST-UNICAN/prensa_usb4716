@@ -33,8 +33,21 @@ class UnitsAndFiltersTests(unittest.TestCase):
         self.assertAlmostEqual(series[0][1][0], 98.0665)
         text = filtered_csv_text(self.session, 'Media móvil', 3, 'Ascenso 5–95 %')
         self.assertIn('fuerza_N_filtrada', text)
-        self.assertIn('10.0', text)
+        self.assertIn('5.0', text)  # Media calculada antes de recortar el intervalo.
 
 
 if __name__ == '__main__':
     unittest.main()
+
+class PeakColourTests(unittest.TestCase):
+    def test_red_starts_at_displayed_peak(self):
+        from matplotlib.figure import Figure
+        from exports import draw_chart
+        session=dict(metadata=dict(reference='peak'),configuration={},samples=[dict(t=i*.1,vf=0,vd=0,force_kp=f,deformation_mm=i*.1) for i,f in enumerate([0,10,30,80,60,40])])
+        ax=Figure().add_subplot(111)
+        draw_chart(ax,[session],'ft')
+        red=ax.lines[-1]
+        import math
+        first=next(i for i,v in enumerate(red.get_ydata()) if math.isfinite(v))
+        self.assertEqual(first,3)
+        self.assertEqual(red.get_ydata()[first],80)

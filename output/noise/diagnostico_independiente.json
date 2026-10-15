@@ -1,0 +1,31 @@
+{
+  "input": "AI2-AI3 diferencial, rango -5 a +5 V",
+  "independent_probe": "tools/diagnose_single_input.cpp",
+  "verified_sdk_settings": {
+    "differential": true,
+    "range_neg5to5": true
+  },
+  "single_channel_capture": {
+    "path": "output/noise/solo_AI2.csv",
+    "samples": 412,
+    "min_v": -4.405517578,
+    "max_v": 0.029907227,
+    "mean_v": -1.9783994063786408,
+    "std_v": 1.650087029727403,
+    "variance_explained_by_50hz_sine": 0.9666952493528889
+  },
+  "read_order_comparison": {
+    "normal_deformation_min_v": -4.4219970703125,
+    "normal_deformation_max_v": 0.030059814453125,
+    "reversed_deformation_min_v": -4.42535400390625,
+    "reversed_deformation_max_v": 0.029754638671875
+  },
+  "conclusion": "La oscilación está presente en DAQNavi incluso leyendo solo AI2 desde C++; no depende del filtro, interfaz ni alternancia de canales. Compatible con interferencia eléctrica de 50 Hz; requiere verificación física para identificar el origen.",
+  "not_performed": [
+    "Cambios de cableado",
+    "Cambios de polaridad",
+    "Cambios de calibración",
+    "Recorte de voltajes negativos",
+    "Control de actuadores"
+  ]
+}

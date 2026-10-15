@@ -1,0 +1,30 @@
+{
+  "session_id": "a7e71e8e-90a6-4060-98e6-1c5ccb603666",
+  "reference": "ensayo_20261015_102212",
+  "raw_peak_kp": 869.9576533255542,
+  "mean_1s_peak_kp": 339.45207281213516,
+  "deformation_at_mean_peak_mm": 4.06551942410344,
+  "initial_calibration_peak_kp": 342.6126527099609,
+  "initial_calibration_deformation_at_peak_mm": 4.06551942410344,
+  "force_gain_change_percent": 0.9310828099066359,
+  "rupture": {
+    "index": 1100,
+    "t": 11.960505499970168,
+    "confirmed_at": 12.663279499975033,
+    "force_kp": 339.45207281213516,
+    "drop_kp": 57.8648599535085,
+    "method": "mean_1s_drop_10pct_6sigma_0.5s"
+  },
+  "old_files": {
+    "prueba programa-1.txt": {
+      "peak_kp": 416.0,
+      "deformation_at_peak_mm": 5.11,
+      "samples": 166
+    },
+    "prueba comparativa con 3 del otro pc-1.txt": {
+      "peak_kp": 402.0,
+      "deformation_at_peak_mm": 3.45,
+      "samples": 156
+    }
+  }
+}

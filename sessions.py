@@ -120,3 +120,12 @@ class SessionStore:
         finally: con.close()
         if not row: raise ValueError('El ensayo ya no está disponible.')
         return validate_session(json.loads(row[0]))
+
+    def delete(self, session_id):
+        """Elimina únicamente el registro confirmado, en una transacción."""
+        con=self._connect()
+        try:
+            with con:
+                cursor=con.execute('DELETE FROM sessions WHERE id=?',(session_id,))
+                if cursor.rowcount!=1:raise ValueError('El ensayo ya no está disponible.')
+        finally:con.close()

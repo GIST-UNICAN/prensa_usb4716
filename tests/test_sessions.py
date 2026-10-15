@@ -25,6 +25,13 @@ class SessionTests(unittest.TestCase):
         self.assertEqual(reopened.list('Ana','Real'),[])
         self.assertEqual(session_summary(self.session)['deformation_at_peak_mm'],2)
 
+    def test_delete_is_persistent_and_scoped_to_selected_id(self):
+        store=SessionStore(self.root/'db');store.save(self.session)
+        other=json.loads(json.dumps(self.session));other['id']='other';store.save(other)
+        store.delete(self.session['id'])
+        self.assertEqual([s['id'] for s in SessionStore(self.root/'db').list()],['other'])
+        with self.assertRaises(ValueError):store.delete(self.session['id'])
+
     def test_invalid_session_cannot_replace_valid_archive(self):
         store=SessionStore(self.root/'db'); store.save(self.session)
         self.session['samples'][1]['force_kp']=float('nan')
@@ -60,10 +67,30 @@ class SessionTests(unittest.TestCase):
         self.session['metadata']['reference']='=1+1'
         path=self.root/'book.xlsx'; export_session(self.session,path,'xlsx')
         book=load_workbook(path)
-        self.assertEqual(book['Datos'].max_row,4)
-        self.assertEqual(book['Datos']['F4'].value,2)
-        self.assertEqual(book['Resumen']['B1'].data_type,'s')
-        self.assertEqual(len(book['Gráficas']._charts),3)
+        self.assertIn('Resultados Marshall',book.sheetnames)
+        self.assertIn('Gráfico Marshall',book.sheetnames)
+        self.assertIn('Referencia UNE',book.sheetnames)
+        self.assertEqual(book['Referencia UNE']['B1'].value,'UNE-EN 12697-34:2022')
+        self.assertIsNone(book['Gráfico Marshall']['R20'].value)
+        self.assertIn('EXP(-0.0259',book['Resultados Marshall']['H18'].value)
+        chart=book['Gráfico Marshall']._charts[0]
+        self.assertEqual(chart.x_axis.tickLblPos,'nextTo');self.assertEqual(chart.y_axis.tickLblPos,'nextTo')
+        self.assertFalse(chart.x_axis.delete);self.assertFalse(chart.y_axis.delete)
+        self.assertIsInstance(book['Resultados Marshall']['H2'].value,(int,float))
+        self.assertEqual(len(book['Gráfico Marshall']._charts),1)
+        self.assertEqual(book['Resultados Marshall']['F2'].value,3)
+        self.assertIsNone(book['Resultados Marshall']['A3'].value)
+        self.assertNotIn('Datos',book.sheetnames)
+        self.assertEqual(book['Configuración']['B2'].data_type,'s')
+        book.close()
+
+    def test_xlsx_prefills_optional_geometry(self):
+        from openpyxl import load_workbook
+        self.session['configuration']={'specimen_height_mm':63.5,'specimen_volume_mm3':500000}
+        path=self.root/'dimensions.xlsx';export_session(self.session,path,'xlsx')
+        book=load_workbook(path)
+        self.assertEqual(book['Gráfico Marshall']['R20'].value,63.5)
+        self.assertEqual(book['Gráfico Marshall']['R21'].value,500000)
         book.close()
 
     def test_zip_complete_and_html_escapes_metadata(self):

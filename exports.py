@@ -8,6 +8,11 @@ import os
 import tempfile
 import zipfile
 from pathlib import Path
+from trial_detection import detect_test_interval
+from plot_cleaning import clean_rows, compression_deformation
+from legacy_processing import legacy_plot_rows
+from force_processing import force_series
+from signal_processing import detect_rupture, time_average
 from sessions import dumps_session, session_summary
 from units import from_kp
 from theme import UC_BACKGROUND, UC_CHART_COLORS, UC_DEEP, UC_INK, UC_PALE, UC_PRIMARY
@@ -64,6 +69,10 @@ def filter_values(values, method='Sin filtro', window=1):
 
 
 def selected_indices(rows, range_filter='Todo'):
+    if range_filter == 'Ensayo detectado':
+        span = detect_test_interval(rows)
+        if span is None: return []
+        return list(range(span['start'], (span['end'] if span['end'] is not None else len(rows)-1)+1))
     """El tramo histórico 5–95 % se limita al ascenso anterior al primer pico."""
     if range_filter == 'Todo' or not rows: return list(range(len(rows)))
     peak_index=max(range(len(rows)),key=lambda i: rows[i]['force_kp'])
@@ -76,20 +85,26 @@ def selected_indices(rows, range_filter='Todo'):
 
 
 def chart_series(session, kind, unit='kp', window=1, method='Sin filtro', range_filter='Todo'):
-    original=session['samples']
+    original=session['samples'] if (session.get('configuration') or {}).get('export_processed') else legacy_plot_rows(session['samples']) if method=='Antiguo (10 lecturas)' else clean_rows(session['samples'])
     indices=selected_indices(original,range_filter)
     rows=[original[i] for i in indices]
     if not rows: return [([],[],'Sin puntos en el tramo elegido')], 'Tiempo (s)', unit
     area=(session.get('configuration') or {}).get('specimen_area_mm2')
     times=[r['t']-rows[0]['t'] for r in rows]
-    force=filter_values([from_kp(r['force_kp'],unit,area) for r in rows],method,window)
-    deform=filter_values([r['deformation_mm'] for r in rows],method,window)
+    filter_series=lambda values: time_average([r['t'] for r in original],values,1.) if method=='Media temporal 1 s' else filter_values(values,method,window)
+    force_input=original if method=='Antiguo (10 lecturas)' else [{**r,'force_kp':r['force_kp'] if o['force_kp']>=0 else float('nan')} for r,o in zip(original,session['samples'])]
+    force_all=[from_kp(v,unit,area) for v in force_series([r['t'] for r in force_input],[r['force_kp'] for r in force_input],method=method,window=window)]
+    deform_all=compression_deformation(filter_series([r['deformation_mm'] for r in original]))
+    force=[force_all[i] for i in indices]
+    deform=[deform_all[i] for i in indices]
     if kind=='fd': return [(deform,force,'Carga')], 'Deformación (mm)', f'Fuerza ({unit})'
     if kind=='ft': return [(times,force,'Carga')], 'Tiempo (s)', f'Fuerza ({unit})'
     if kind=='dt': return [(times,deform,'Deformación')], 'Tiempo (s)', 'Deformación (mm)'
     if kind=='volts':
-        return [(times,filter_values([r['vf'] for r in rows],method,window),'Fuerza'),
-                (times,filter_values([r['vd'] for r in rows],method,window),'Deformación')], 'Tiempo (s)', 'Voltaje (V)'
+        vf=filter_series([r['vf'] for r in original])
+        vd=filter_series([r['vd'] for r in original])
+        return [(times,[vf[i] for i in indices],'Fuerza'),
+                (times,[vd[i] for i in indices],'Deformación')], 'Tiempo (s)', 'Voltaje (V)'
     if kind=='speed':
         # Diferencias sobre una ventana de al menos 0,5 s para reducir ruido.
         x=[]; y=[]; j=0
@@ -102,13 +117,15 @@ def chart_series(session, kind, unit='kp', window=1, method='Sin filtro', range_
     raise ValueError('Gráfica desconocida.')
 
 
-def draw_chart(ax, sessions, kind, unit='kp', window=1, method='Sin filtro', range_filter='Todo'):
+def draw_chart(ax, sessions, kind, unit='kp', window=1, method='Sin filtro', range_filter='Todo', positive_only=False):
     ax.clear(); ax.set_facecolor(UC_BACKGROUND); ax.grid(alpha=.18,color=UC_PRIMARY)
     ax.set_title(CHARTS[kind],loc='left',fontweight='bold',pad=14)
     visible=False
     for n,session in enumerate(sessions):
         series,xlabel,ylabel=chart_series(session,kind,unit,window,method,range_filter)
         for j,(xs,ys,label) in enumerate(series):
+            if positive_only and kind in ('fd','ft','dt'):
+                ys=[float('nan') if y is not None and (y<0 or (kind=='fd' and x<0)) else y for x,y in zip(xs,ys)]
             if not any(y is not None and math.isfinite(y) for y in ys): continue
             visible=True
             # Limita solamente la representación; los archivos conservan todos los datos.
@@ -118,12 +135,17 @@ def draw_chart(ax, sessions, kind, unit='kp', window=1, method='Sin filtro', ran
             name=session['metadata'].get('reference','Ensayo')
             ax.plot([xs[i] for i in indices],[ys[i] if ys[i] is not None else float('nan') for i in indices],
                     color=COLORS[n%len(COLORS)] if len(sessions)>1 else COLORS[j],
-                    linestyle='--' if j else '-',linewidth=1.6,label=f'{name} · {label}')
+                    linestyle='--' if j else '-',marker=None,markersize=3,linewidth=1.6,label=f'{name} · {label}')
+        if kind in ('fd','ft','dt'):
+            force_series_for_peak,_,_=chart_series(session,'ft',unit,window,method,range_filter)
+            force_values=force_series_for_peak[0][1]
+            finite=[i for i,v in enumerate(force_values) if v is not None and math.isfinite(v)]
+            peak_index=max(finite,key=lambda i:force_values[i]) if finite else None
+            if peak_index is not None and force_values[peak_index]>0:
+                for xs,ys,label in series:
+                    red=[y if i>=peak_index and y is not None and not (positive_only and (y<0 or (kind=='fd' and x<0))) else float('nan') for i,(x,y) in enumerate(zip(xs,ys))]
+                    ax.plot(xs,red,color='#c62828',linestyle='-',marker=None,markersize=3,label='Desde carga máxima · '+session['metadata'].get('reference','Ensayo'))
         ax.set_xlabel(xlabel); ax.set_ylabel(ylabel)
-        if kind=='fd' and method=='Sin filtro' and range_filter=='Todo':
-            peak=max(session['samples'],key=lambda r:r['force_kp'])
-            area=(session.get('configuration') or {}).get('specimen_area_mm2')
-            ax.scatter([peak['deformation_mm']],[from_kp(peak['force_kp'],unit,area)],color=COLORS[n%len(COLORS)],s=28,zorder=4)
     if visible: ax.legend(fontsize=8,loc='best')
     else: ax.text(.5,.5,'Sin datos disponibles para esta gráfica',ha='center',va='center',transform=ax.transAxes,color=UC_PRIMARY)
 
@@ -131,16 +153,25 @@ def draw_chart(ax, sessions, kind, unit='kp', window=1, method='Sin filtro', ran
 def figure_for(session, kind):
     from matplotlib.figure import Figure
     fig=Figure(figsize=(8,4.5),dpi=120,constrained_layout=True)
-    draw_chart(fig.add_subplot(111),[session],kind)
+    rows=session['samples']; duration=rows[-1]['t']-rows[0]['t'] if rows else 0
+    window=max(1,round((len(rows)-1)/duration)) if duration>0 else 1
+    ax=fig.add_subplot(111)
+    processed=(session.get('configuration') or {}).get('export_processed',False)
+    draw_chart(ax,[session],kind,method='Sin filtro' if processed else 'Mediana',window=1 if processed else 10,range_filter='Todo' if processed else 'Ensayo detectado',positive_only=True)
+    ax.set_title(CHARTS[kind],loc='left',fontsize=11,fontweight='bold')
     return fig
 
 
 def filtered_csv_text(session, method='Sin filtro', window=1, range_filter='Todo'):
     """CSV de análisis: contiene sólo la selección y los valores mostrados."""
-    rows=session['samples']; indices=selected_indices(rows,range_filter)
+    rows=legacy_plot_rows(session['samples']) if method=='Antiguo (10 lecturas)' else session['samples']
+    indices=selected_indices(rows,range_filter)
     area=(session.get('configuration') or {}).get('specimen_area_mm2')
-    forces=filter_values([rows[i]['force_kp'] for i in indices],method,window)
-    deformations=filter_values([rows[i]['deformation_mm'] for i in indices],method,window)
+    filt=lambda values: time_average([r['t'] for r in rows],values,1.) if method=='Media temporal 1 s' else filter_values(values,method,window)
+    all_forces=force_series([r['t'] for r in rows],[r['force_kp'] for r in rows],method=method,window=window)
+    all_deformations=compression_deformation(filt([r['deformation_mm'] for r in rows]))
+    forces=[all_forces[i] for i in indices]
+    deformations=[all_deformations[i] for i in indices]
     out=io.StringIO(newline=''); writer=csv.writer(out,delimiter=';')
     writer.writerow(['tiempo_s','fuerza_kp_filtrada','fuerza_kgf_filtrada','fuerza_N_filtrada','fuerza_kN_filtrada','deformacion_mm_filtrada','presion_MPa_filtrada','presion_kgf_cm2_filtrada'])
     for index,force,deformation in zip(indices,forces,deformations):
@@ -169,39 +200,26 @@ def html_report(session):
 <p>Probeta: {esc(meta.get('sample_id',''))} · Operador: {esc(meta.get('operator',''))}</p>
 <p>Adquisición: {esc(session.get('acquired_at') or 'No disponible')} · Archivo: {esc(session['saved_at'])} · {summary['points']} puntos</p>
 <p>{esc(meta.get('notes',''))}</p><div class="cards">{cards}</div><div class="plots">{''.join(plots)}</div>
-<p>Datos sin suavizado. Velocidad calculada sobre intervalos de al menos 0,5 s. Estadísticas descriptivas; el informe no certifica un ensayo normativo.</p>
+<p>Referencia de cálculo: UNE-EN 12697-34:2022, apartados 3, 7 y anexo A. Los archivos generados desde Exportar utilizan la misma media por bloques de diez y los mismos puntos de la curva. El historial conserva los originales. Resultados individuales: no certifican por sí solos las condiciones del ensayo ni el grupo de probetas.</p>
 <details><summary>Configuración y calibración originales</summary><pre>{config}</pre></details>
 <p>Informe autónomo: las gráficas están incluidas y no requiere conexión a Internet. Use Imprimir en su navegador para obtener una copia.</p></main></html>'''
 
 
-def write_xlsx(session, path):
+def write_xlsx(session,path):
+    """Excel calculado con exactamente los puntos del panel de resultados."""
     from openpyxl import Workbook
-    from openpyxl.chart import ScatterChart, Series, Reference
-    from openpyxl.styles import Font, PatternFill
-    wb=Workbook(); summary=wb.active; summary.title='Resumen'
-    def text_row(sheet,key,value):
-        sheet.append([key,str(value) if value is not None else 'No disponible'])
-        sheet.cell(sheet.max_row,2).data_type='s'  # Texto del operador nunca se interpreta como fórmula.
-    for k,v in session['metadata'].items(): text_row(summary,k,v)
-    text_row(summary,'Adquisición',session.get('acquired_at'))
-    text_row(summary,'Guardado',session['saved_at'])
-    for k,v in session_summary(session).items(): summary.append([k,v])
-    data=wb.create_sheet('Datos'); data.append(HEADERS)
-    if len(session['samples'])>1048575: raise ValueError('Excel admite hasta 1.048.575 muestras por hoja; use CSV o JSON.')
-    for row in data_rows(session): data.append(row)
-    data.freeze_panes='A2'; data.auto_filter.ref=data.dimensions
-    config=wb.create_sheet('Calibración')
-    for k,v in (session.get('configuration') or {'Estado':'No disponible'}).items():
-        text_row(config,k,json.dumps(v,ensure_ascii=False) if isinstance(v,(dict,list)) else v)
-    plots=wb.create_sheet('Gráficas')
-    for i,(title,xcol,ycol) in enumerate([('Fuerza · deformación',6,4),('Fuerza · tiempo',1,4),('Deformación · tiempo',1,6)]):
-        chart=ScatterChart(); chart.title=title; chart.style=13; chart.x_axis.title=HEADERS[xcol-1]; chart.y_axis.title=HEADERS[ycol-1]
-        chart.series.append(Series(Reference(data,min_col=ycol,min_row=2,max_row=data.max_row),Reference(data,min_col=xcol,min_row=2,max_row=data.max_row),title=title))
-        chart.width=23; chart.height=12; plots.add_chart(chart,f'A{1+i*25}')
-    for sheet in (summary,data,config):
-        for cell in sheet[1]: cell.font=Font(bold=True,color='FFFFFF'); cell.fill=PatternFill('solid',fgColor=UC_DEEP[1:])
-        for col in ('A','B','C','D','E','F'): sheet.column_dimensions[col].width=25
-    summary.column_dimensions['B'].width=65; config.column_dimensions['B'].width=90
+    from openpyxl.styles import Font,PatternFill
+    from marshall_results import add_excel_results
+    wb=Workbook();wb.remove(wb.active)
+    add_excel_results(wb,session)
+    config=wb.create_sheet('Configuración')
+    config.append(['Campo','Valor'])
+    for key,value in {**session['metadata'],'Fecha adquisición':session.get('acquired_at'),'ID ensayo':session['id'],**(session.get('configuration') or {})}.items():
+        config.append([key,json.dumps(value,ensure_ascii=False) if isinstance(value,(dict,list)) else str(value) if value is not None else 'No disponible'])
+        config.cell(config.max_row,2).data_type='s'
+    config.column_dimensions['A'].width=40;config.column_dimensions['B'].width=90;config.freeze_panes='A2'
+    for cell in config[1]:cell.font=Font(bold=True,color='FFFFFF');cell.fill=PatternFill('solid',fgColor=UC_DEEP[1:])
+    wb.active=1
     wb.save(path)
 
 

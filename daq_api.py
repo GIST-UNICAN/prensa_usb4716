@@ -73,6 +73,11 @@ class AdvantechDAQ(BaseDAQ):
         rc = self._dll.daq_open(self.device_description, self.force_channel, self.deformation_channel)
         if rc != 0:
             self._dll = None
+            if rc & 0xFFFFFFFF == 0xE0000015:
+                raise DAQError("DAQNavi no encuentra el dispositivo (0xE0000015). Compruebe la conexión USB y el nombre en Navigator.")
+            if rc & 0xFFFFFFFF == 0xE0000010:
+                raise DAQError("DAQNavi no concede el acceso solicitado (0xE0000010). "
+                               "Desconecte la tarjeta en otras instancias de la aplicación o en Navigator y vuelva a intentar.")
             raise DAQError(
                 f"DAQNavi devolvio el codigo 0x{rc & 0xFFFFFFFF:08X} al abrir {self.device_description}. "
                 "Compruebe el nombre del dispositivo en Advantech Navigator."

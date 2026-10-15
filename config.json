@@ -1,16 +1,22 @@
 {
   "device_description": "USB-4716,BID#0",
+  "logo_path": "assets/uc_logo_2024.png",
+  "input_mode": "Differential",
+  "input_range": "V_Neg5To5",
   "force_channel": 0,
   "deformation_channel": 2,
-  "force_factor_kp_per_v": -1970.57,
-  "force_offset_kp": 0.0,
+  "force_factor_kp_per_v": -1952.391617269545,
+  "force_offset_kp": -305.3591015169195,
   "deformation_factor_mm_per_v": 2.643095,
   "deformation_offset_mm": 0.0,
-  "sample_hz": 100,
+  "sample_hz": 100.0,
   "display_average_samples": 10,
   "tare_samples": 100,
   "saturation_voltage": 4.95,
   "output_directory": "ensayos",
+  "display_unit": "kp",
+  "specimen_area_mm2": 0.0,
+  "enable_extra_exports": false,
   "pinout": {
     "legacy_force_high": 1,
     "legacy_force_low": 20,
@@ -21,7 +27,66 @@
     "usb_deformation_plus": 2,
     "usb_deformation_minus": 3
   },
-  "logo_path": "assets/uc_logo_2024.png",
-  "input_mode": "Differential",
-  "input_range": "V_Neg5To5"
+  "calibration_history": [
+    {
+      "date": "2026-10-09T10:17:03.688304",
+      "method": "ring_zero_and_1mm",
+      "demo": false,
+      "force_at_1mm_kp": 1787.17,
+      "deformation_reference_mm": 1.0,
+      "zero": {
+        "t": 30375.5162564,
+        "vf": -0.156402587890625,
+        "vd": -2.25128173828125,
+        "sigma_f": 0.0009450560760200701,
+        "sigma_d": 0.004310150880151899,
+        "demo": false,
+        "captured_at": "2026-10-09T10:10:30.956124"
+      },
+      "one_mm": {
+        "t": 30764.1641839,
+        "vf": -1.07177734375,
+        "vd": -1.471710205078125,
+        "sigma_f": 0.0013195682322619052,
+        "sigma_d": 0.004857017776580997,
+        "demo": false,
+        "captured_at": "2026-10-09T10:16:59.602752"
+      },
+      "force_fit": {
+        "factor": -1952.391617269545,
+        "offset": -305.3591015169195,
+        "r2": 1.0,
+        "max_error": 0.0,
+        "residuals": [
+          0.0,
+          0.0
+        ]
+      },
+      "deformation_fit": {
+        "factor": 1.28275592092386,
+        "offset": 2.887844979448033,
+        "r2": 1.0,
+        "max_error": 2.220446049250313e-16,
+        "residuals": [
+          0.0,
+          -2.220446049250313e-16
+        ]
+      }
+    },
+    {
+      "date": "2026-10-15T10:15:09.068578+02:00",
+      "method": "restore_previous_deformation",
+      "sensor": "Deformación (mm)",
+      "source": "git HEAD:config.json",
+      "previous_calibration": {
+        "deformation_factor_mm_per_v": 1.28275592092386,
+        "deformation_offset_mm": 2.887844979448033
+      },
+      "restored_calibration": {
+        "deformation_factor_mm_per_v": 2.643095,
+        "deformation_offset_mm": 0.0
+      }
+    }
+  ],
+  "draft_trial_reference": "ensayo_20261015_172656"
 }

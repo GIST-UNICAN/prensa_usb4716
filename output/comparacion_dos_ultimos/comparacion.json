@@ -1,0 +1,54 @@
+[
+  {
+    "id": "6dba5474-c2fc-4289-8981-f90f124e5c55",
+    "reference": "ensayo_20261015_163054",
+    "acquired_at": "2026-10-15T14:32:36+00:00",
+    "scenarios": {
+      "Registrada": {
+        "peak_kp": 1752.227981446908,
+        "peak_mm": 3.9953702539138796,
+        "corrected_mm": 1.81,
+        "slope_kp_mm": 1659.9898205509605
+      },
+      "Inicial": {
+        "peak_kp": 1768.5426749725343,
+        "peak_mm": 3.9953702539138796,
+        "corrected_mm": 1.81,
+        "slope_kp_mm": 1675.44570041631
+      },
+      "Anillo: hipótesis de recorrido": {
+        "peak_kp": 1752.227981446908,
+        "peak_mm": 1.9390467801918185,
+        "corrected_mm": 0.87,
+        "slope_kp_mm": 3420.3785172078537
+      }
+    },
+    "xlsx": "ensayo_1_calibracion_inicial.xlsx"
+  },
+  {
+    "id": "0f6d1f5f-0e5b-4f57-a944-2072ec22a62f",
+    "reference": "ensayo_20261015_151116",
+    "acquired_at": "2026-10-15T14:28:59+00:00",
+    "scenarios": {
+      "Registrada": {
+        "peak_kp": 1973.4211772462077,
+        "peak_mm": 1.7762851869735719,
+        "corrected_mm": 1.57,
+        "slope_kp_mm": 2044.1956594294873
+      },
+      "Inicial": {
+        "peak_kp": 1991.7953625946043,
+        "peak_mm": 1.7762851869735719,
+        "corrected_mm": 1.57,
+        "slope_kp_mm": 2063.228813815293
+      },
+      "Anillo: hipótesis de recorrido": {
+        "peak_kp": 1973.4211772462077,
+        "peak_mm": 0.8620728126834998,
+        "corrected_mm": 0.76,
+        "slope_kp_mm": 4212.027587109835
+      }
+    },
+    "xlsx": "ensayo_2_calibracion_inicial.xlsx"
+  }
+]
