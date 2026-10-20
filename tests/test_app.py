@@ -287,7 +287,7 @@ class AppTests(unittest.TestCase):
         q=a.voltage_filters[0].q_per_second
         a.kalman_strength.set('Muy alto'); a._display_controls_changed()
         self.assertAlmostEqual(a.voltage_filters[0].q_per_second,q*.01)
-        self.assertIn('Kalman muy alto',a.ax_ft.get_title())
+        self.assertEqual(a.ax_ft.get_title(),'Fuerza · tiempo')
         self.assertNotEqual(list(a.ax_ft.lines[0].get_ydata()),original)
         self.assertEqual([s.force_kp for s in a.samples],original)
         a.display_mode.set('Directa'); a._display_controls_changed()
@@ -408,6 +408,18 @@ class AppTests(unittest.TestCase):
         self.assertIsNotNone(a.test_context['rupture_estimate'])
         a._save_plot_file(Path(self.tmp.name)/'rotura.png','ft')
         self.assertTrue((Path(self.tmp.name)/'rotura.png').exists())
+
+    def test_live_rupture_turns_red_within_one_second(self):
+        from app import Sample
+        a=self.app;a.connected=True;a.display_mode.set('Media de 10 lecturas');a.start_recording()
+        rows=[Sample(i/100,0,0,0 if i<100 else min(1000,(i-100)*5),i/100) for i in range(401)]
+        rows += [Sample(i/100,0,0,1000-30*(i/100-4),i/100) for i in range(401,476)]
+        a.samples=rows[:421];a._redraw_plots()
+        self.assertNotIn('PROBETA ROTA',a.rupture_status.get())
+        a.samples=rows;a._redraw_plots()
+        self.assertTrue(a.recording)
+        self.assertIn('PROBETA ROTA',a.rupture_status.get())
+        self.assertTrue(any(line.get_color()=='#c62828' for line in a.ax_ft.lines))
 
     def test_calibration_only_inside_configuration(self):
         a=self.app
