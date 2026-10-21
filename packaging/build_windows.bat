@@ -17,6 +17,7 @@ if not exist "bridge\usb4716_bridge.dll" (
 REM onedir deja DLL y recursos visibles junto al EXE, apropiado para soporte de DAQNavi.
 py -3 -m PyInstaller --noconfirm --clean --windowed --onedir ^
   --name "PrensaMarshallUSB4716" ^
+  --icon "assets\prensa_marshall_uc.ico" ^
   --add-data "assets;assets" ^
   --add-data "config.json;." ^
   --add-data "sample_data;sample_data" ^

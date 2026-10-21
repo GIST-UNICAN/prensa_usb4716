@@ -102,6 +102,11 @@ class App(BrandingUI, AnalysisUI, Workbench, tk.Tk):
     def __init__(self, demo=False):
         super().__init__()
         self.title("Prensa Marshall - Advantech USB-4716")
+        try:
+            self.iconbitmap(default=str(BASE / 'assets' / 'prensa_marshall_uc.ico'))
+        except tk.TclError:
+            # macOS y algunos escritorios Linux no admiten iconos .ico en Tk.
+            pass
         self.geometry("1280x820")
         self.minsize(1050, 700)
         self.protocol("WM_DELETE_WINDOW", self.on_close)
