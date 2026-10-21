@@ -7,4 +7,5 @@ tmp/
 output/pdf/historial.sqlite3
 build/
 dist/
+release/
 *.spec

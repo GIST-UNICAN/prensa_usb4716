@@ -46,7 +46,7 @@ py app.py
 
 ## Ejecutable Windows
 
-La compilación se realiza en Windows x64 con PyInstaller y se distribuye como carpeta `onedir`, junto a la DLL puente. El ejecutable y la ventana usan el icono de prensa en la paleta UC. Consulte [docs/COMPILAR_WINDOWS.md](docs/COMPILAR_WINDOWS.md); el script reproducible es `packaging/build_windows.bat`.
+La compilación se realiza en Windows x64 con PyInstaller y se distribuye como carpeta `onedir`, junto a la DLL puente. El ejecutable y la ventana usan el icono de prensa en la paleta UC. Para entregar un instalador que cree accesos directos en el Escritorio y en Aplicaciones, ejecute `packaging/build_installer.bat`. Consulte [docs/COMPILAR_WINDOWS.md](docs/COMPILAR_WINDOWS.md).
 
 ## Datos de prueba
 

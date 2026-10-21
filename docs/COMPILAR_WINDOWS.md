@@ -35,3 +35,19 @@ Así, una actualización de la carpeta `dist` no borra calibraciones, pinout ni 
 3. En el equipo de prensa, compruebe DAQNavi Navigator, los AI0/AI1 y AI2/AI3, la tara y dos patrones por sensor antes de un ensayo real.
 
 No se incluye DAQNavi en el paquete: debe instalarse mediante el instalador y licencia de Advantech en cada equipo.
+
+## Instalador con icono y accesos directos
+
+Para entregar la aplicación de forma instalable, instale primero [Inno Setup 6](https://jrsoftware.org/isdl.php):
+
+```bat
+winget install --id JRSoftware.InnoSetup -e -s winget -i
+```
+
+Después, desde la carpeta raíz del proyecto ejecute:
+
+```bat
+packaging\build_installer.bat
+```
+
+Se generará `release\Instalar_PrensaMarshallUSB4716.exe`. Al ejecutarlo, el instalador copia toda la carpeta necesaria, crea el icono en el Escritorio y añade **Prensa Marshall USB-4716** al menú Inicio, dentro de Aplicaciones. No requiere permisos de administrador y se instala para el usuario actual.
