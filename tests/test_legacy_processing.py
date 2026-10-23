@@ -18,3 +18,10 @@ class LegacyTests(unittest.TestCase):
         self.assertAlmostEqual(legacy_tare(rows)['channels'][0]['mean_v'],.2)
         rows[-1]=(99,5,0)
         with self.assertRaises(ValueError): legacy_tare(rows)
+
+    def test_noisy_tare_can_continue_when_requested(self):
+        rows=[(i*.01, .3 if i%2 else -.3, -.5) for i in range(100)]
+        with self.assertRaises(ValueError): legacy_tare(rows)
+        result=legacy_tare(rows,allow_unstable=True)
+        self.assertIn('warning',result['stability'])
+        self.assertAlmostEqual(result['channels'][0]['mean_v'],0)

@@ -1151,14 +1151,15 @@ La aplicación adquiere datos; no controla el movimiento de la prensa.
             self.tare_buffer.append((now,vf,vd))
             if len(self.tare_buffer)>=100:
                 try:
-                    stats=legacy_tare(self.tare_buffer,self.cfg['saturation_voltage'])
+                    stats=legacy_tare(self.tare_buffer,self.cfg['saturation_voltage'],allow_unstable=True)
                     self.zero_force_v=stats['channels'][0]['mean_v']+self.cfg.get('force_offset_kp',0)/self.cfg['force_factor_kp_per_v']
                     self.zero_deform_v=stats['channels'][1]['mean_v']+self.cfg.get('deformation_offset_mm',0)/self.cfg['deformation_factor_mm_per_v']
                     self.last_tare=stats
                     self.tare_valid=True
                     self._reset_display()
                     self.current_force.set('0'); self.current_kn.set('0.0'); self.current_def.set('0.00')
-                    self.status.set('Tara aplicada: media de 100 lecturas; indicadores a cero')
+                    warning=stats['stability'].get('warning')
+                    self.status.set('Tara aplicada con aviso de señal; puede iniciar el ensayo' if warning else 'Tara aplicada: media de 100 lecturas; indicadores a cero')
                 except ValueError as exc:
                     self.status.set('Tara rechazada; cero anterior conservado: '+str(exc))
                 self.tare_pending=False; self.tare_buffer.clear(); self.force_window.clear(); self.deform_window.clear()

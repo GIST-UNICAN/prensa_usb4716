@@ -1,5 +1,6 @@
 """Promedios por bloques y truncado equivalentes al formulario VB antiguo."""
 import math
+import statistics
 from plot_cleaning import correct_transient_reversals
 from taring import stable_tare
 
@@ -37,9 +38,29 @@ def legacy_text(rows):
     return ''.join(f"{round(r['deformation_mm']*100)} * {r['force_kp']} * {r['t']:.6f}\n" for r in legacy_plot_rows(rows))
 
 
-def legacy_tare(rows,saturation=4.95):
+def legacy_tare(rows,saturation=4.95,allow_unstable=False):
+    """Calcula la tara histórica de 100 lecturas.
+
+    La saturación, datos no finitos y tiempos erróneos siempre impiden la tara.
+    En adquisición real se puede continuar con una señal ruidosa: se conserva la
+    media histórica y se registra la advertencia para que no bloquee el ensayo.
+    """
     if len(rows)!=100: raise ValueError('La tara requiere 100 lecturas.')
-    if any(not math.isfinite(v) or abs(v)>=saturation for r in rows for v in r[1:]):
+    if any(not math.isfinite(v) for r in rows for v in r):
+        raise ValueError('Lectura inválida; tara anterior conservada.')
+    if any(b[0]<=a[0] for a,b in zip(rows,rows[1:])):
+        raise ValueError('Tiempos inválidos durante la tara.')
+    if any(abs(v)>=saturation for r in rows for v in r[1:]):
         raise ValueError('Saturación o lectura inválida; tara anterior conservada.')
-    validation=stable_tare(rows,saturation)
+    try:
+        validation=stable_tare(rows,saturation)
+    except ValueError as exc:
+        if not allow_unstable:
+            raise
+        validation=dict(
+            method='legacy_mean_100_with_signal_warning',
+            warning=str(exc),
+            channels=[dict(mean_v=sum(r[i] for r in rows)/100,
+                           std_v=statistics.stdev([r[i] for r in rows])) for i in (1,2)],
+        )
     return dict(stability=validation,method='legacy_mean_100',samples=100,duration_s=rows[-1][0]-rows[0][0],channels=[dict(mean_v=sum(r[i] for r in rows)/100) for i in (1,2)])
